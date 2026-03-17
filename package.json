@@ -1,7 +1,7 @@
 {
   "name": "gametrack-frontend",
   "version": "1.0.0",
-  "description": "Game Track Baseball Assistant - React UI",
+  "description": "Mound Track Baseball Assistant - React UI",
   "type": "module",
   "scripts": {
     "dev": "vite --port 3000",

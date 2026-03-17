@@ -3450,8 +3450,11 @@
 
 .auth-brand {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+.auth-brand .brand-logo-img {
+  height: 32px;
 }
 
 .auth-tabs {

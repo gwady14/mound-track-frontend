@@ -1,0 +1,11 @@
+<svg width="360" height="52" viewBox="0 0 360 52" xmlns="http://www.w3.org/2000/svg">
+  <text x="0" y="40"
+    font-family="'Arial Narrow','Impact','Haettenschweiler',sans-serif"
+    font-size="42" font-weight="900" font-style="italic"
+    fill="white" letter-spacing="-0.5">MOUND</text>
+  <text x="152" y="40"
+    font-family="'Arial Narrow','Impact','Haettenschweiler',sans-serif"
+    font-size="42" font-weight="400" font-style="italic"
+    fill="none" stroke="white" stroke-width="1.3"
+    letter-spacing="1.5">TRACK</text>
+</svg>

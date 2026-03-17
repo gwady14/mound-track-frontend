@@ -420,8 +420,7 @@ export default function App() {
       {/* ── Top Header Bar ──────────────────────────────────────────────── */}
       <header className="app-header">
         <div className="header-brand">
-          <span className="brand-name">Game Track</span>
-          <span className="brand-sub">Baseball Assistant</span>
+          <img src="/logo.svg" alt="Mound Track" className="brand-logo-img" />
         </div>
 
         {gameData && (

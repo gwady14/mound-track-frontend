@@ -47,8 +47,7 @@ export default function AuthPage() {
       <div className="auth-card">
         {/* Brand */}
         <div className="auth-brand">
-          <span className="brand-name">Game Track</span>
-          <span className="brand-sub">Baseball Assistant</span>
+          <img src="/logo.svg" alt="Mound Track" className="brand-logo-img" />
         </div>
 
         {/* Mode tabs */}

@@ -29,18 +29,10 @@
   flex-shrink: 0;
 }
 .brand-logo { font-size: 18px; }
-.brand-name {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 17px;
-  font-weight: 800;
-  color: var(--text-primary);
-  letter-spacing: -.02em;
-}
-.brand-sub {
-  font-size: 11px;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: .06em;
+.brand-logo-img {
+  height: 22px;
+  width: auto;
+  display: block;
 }
 
 /* Score bug */
