@@ -398,7 +398,7 @@ export default function App() {
   const currentBatterIdx = gameState.isTop
     ? gameState.awayBatterIdx
     : gameState.homeBatterIdx;
-  const currentBatter   = currentLineup[currentBatterIdx % currentLineup.length];
+  const currentBatter   = currentLineup.length > 0 ? currentLineup[currentBatterIdx % currentLineup.length] : null;
 
   // ── Auth gate: show spinner while validating token ────────────────────────
   if (authLoading) {
