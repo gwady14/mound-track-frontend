@@ -1,0 +1,166 @@
+/**
+ * Game Track API client
+ *
+ * All external data (MLB Stats, FanGraphs, Baseball Savant) is fetched through
+ * the local backend proxy on port 3001. This keeps API keys server-side and
+ * avoids CORS issues with FanGraphs / Savant.
+ *
+ * Vite dev server proxies /api → http://localhost:3001 (see vite.config.js).
+ */
+
+// In production (Vercel), point directly at the Railway backend.
+// In development, Vite proxies /api → localhost:3001.
+const BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api';
+
+/** Generic JSON fetch with error handling */
+async function get(path, token) {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await fetch(`${BASE}${path}`, { headers });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+async function post(path, body, token) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers,
+    body:   JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const b = await res.json().catch(() => ({}));
+    throw new Error(b.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+async function del(path, token) {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await fetch(`${BASE}${path}`, { method: 'DELETE', headers });
+  if (!res.ok) {
+    const b = await res.json().catch(() => ({}));
+    throw new Error(b.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// ─── API methods ────────────────────────────────────────────────────────────
+
+export const api = {
+  /** All 30 MLB teams */
+  getTeams: () => get('/teams'),
+
+  /** WBC 2023 national teams */
+  getWbcTeams: () => get('/wbc-teams'),
+
+  /** Active 26-man roster for a team */
+  getRoster: (teamId, season) => get(`/teams/${teamId}/roster${season ? `?season=${season}` : ''}`),
+
+  /** Player autocomplete search */
+  searchPlayers: (q) => get(`/players/search?q=${encodeURIComponent(q)}`),
+
+  /** Basic bio info for one player */
+  getPlayer: (playerId) => get(`/players/${playerId}`),
+
+  /** Full batter season stats (MLB + FanGraphs + Statcast) */
+  getBatterStats: (playerId, season) =>
+    get(`/stats/batter/${playerId}${season ? `?season=${season}` : ''}`),
+
+  /** Full pitcher season stats (MLB + FanGraphs + Statcast) */
+  getPitcherStats: (playerId, season) =>
+    get(`/stats/pitcher/${playerId}${season ? `?season=${season}` : ''}`),
+
+  /**
+   * Batter vs. pitcher matchup (last 3 seasons from Baseball Savant).
+   * Returns PA-level aggregates: AVG, OBP, SLG, wOBA, HR, BB, SO, EV.
+   */
+  getMatchup: (batterId, pitcherId) =>
+    get(`/matchup?batterId=${batterId}&pitcherId=${pitcherId}`),
+
+  /**
+   * Fetch BvP data for a whole lineup against one pitcher in a single request.
+   * batters = [{id, name}, ...]
+   */
+  getBulkMatchups: (batters, pitcherId) =>
+    post('/matchups/bulk', { batters, pitcherId }),
+
+  /** Bullpen availability panel for a team (includes recent usage + fatigue) */
+  getBullpen: (teamId, season) => get(`/bullpen/${teamId}${season ? `?season=${season}` : ''}`),
+
+  /** Rolling 7-day pitch workload + fatigue band for a pitcher (for Scorebook) */
+  getPitcherFatigue: (pitcherId) => get(`/pitcher-fatigue/${pitcherId}`),
+
+  /** MLB Stats API situational splits for a batter */
+  getSituational: (playerId, season) =>
+    get(`/situational/${playerId}${season ? `?season=${season}` : ''}`),
+
+  /** Hot/cold streaks: last 7, 15, 30 games + recent 5-game dot results */
+  getBatterStreaks: (playerId, season) =>
+    get(`/stats/batter/${playerId}/streaks${season ? `?season=${season}` : ''}`),
+
+  /** Pitch arsenal: usage %, velocity, whiff rate per pitch type (Baseball Savant) */
+  getPitcherArsenal: (playerId, season) =>
+    get(`/stats/pitcher/${playerId}/arsenal${season ? `?season=${season}` : ''}`),
+
+  /**
+   * Career milestone check for a player.
+   * Returns milestones they are approaching (fewest remaining first).
+   */
+  getMilestones: (playerId) => get(`/milestones/${playerId}`),
+
+  /**
+   * Spray chart data: batted-ball hit coordinates (hc_x, hc_y) + outcome
+   * for the current season. Returns [{x, y, o}] where o = hr|triple|double|single|out.
+   * Source: Baseball Savant Statcast search.
+   */
+  getSprayChart: (playerId, season) =>
+    get(`/stats/batter/${playerId}/spray${season ? `?season=${season}` : ''}`),
+
+  /**
+   * Hot/cold zone map: 3×3 strike-zone BA grid for a batter.
+   * Returns [{row, col, ab, hits, ba}] — row 0 = high, col 0 = inside.
+   * Source: same Statcast CSV as spray chart (shared cache).
+   */
+  getZones: (playerId, season) =>
+    get(`/stats/batter/${playerId}/zones${season ? `?season=${season}` : ''}`),
+
+  /**
+   * Claude AI broadcast insights for a batter-pitcher matchup.
+   * Requires ANTHROPIC_API_KEY set in backend/.env.
+   * Returns { insights: [{n, category, text}] }
+   */
+  getInsights: (data) => post('/insights', data),
+
+  /** Health check */
+  health: () => get('/health'),
+
+  // ── BK-35: Auth ──────────────────────────────────────────────────────────
+
+  /** List current user's saved games (summary only) */
+  getGames: (token) => get('/games', token),
+
+  /** Fetch full game data for one saved game */
+  getGame: (id, token) => get(`/games/${id}`, token),
+
+  /** Save a game for the current user */
+  saveGame: (gameData, gameState, isComplete, token) =>
+    post('/games', { gameData, gameState, isComplete }, token),
+
+  /** Delete a saved game */
+  deleteGame: (id, token) => del(`/games/${id}`, token),
+
+  /** Admin: list all users */
+  adminGetUsers: (token) => get('/admin/users', token),
+
+  /** Admin: list saved games for a specific user */
+  adminGetUserGames: (userId, token) => get(`/admin/users/${userId}/games`, token),
+
+  /** Admin: delete a user */
+  adminDeleteUser: (id, token) => del(`/admin/users/${id}`, token),
+};
