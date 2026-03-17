@@ -3,6 +3,13 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/[name]-[hash]-v2.js',
+      },
+    },
+  },
   server: {
     port: 3000,
     // Proxy all /api requests to the backend so the frontend never touches
