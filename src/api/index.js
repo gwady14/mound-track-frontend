@@ -181,4 +181,10 @@ export const api = {
 
   /** Admin: approve or reject a user ('approved' | 'rejected' | 'pending') */
   adminUpdateUserStatus: (id, status, token) => patch(`/admin/users/${id}/status`, { status }, token),
+
+  /** BK-85: send password reset email */
+  forgotPassword: (email) => post('/auth/forgot-password', { email }),
+
+  /** BK-85: reset password using token from email link */
+  resetPassword: (token, password) => post('/auth/reset-password', { token, password }),
 };

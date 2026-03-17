@@ -4,18 +4,30 @@
  * Sign-in / Sign-up portal. Shown when no authenticated session exists.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
+import { api } from '../api/index.js';
 
 export default function AuthPage() {
   const { signIn, signUp } = useAuth();
-  const [mode,     setMode]     = useState('signin'); // 'signin' | 'signup'
+  // mode: 'signin' | 'signup' | 'forgot' | 'reset'
+  const [mode,     setMode]     = useState('signin');
   const [name,     setName]     = useState('');
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [error,    setError]    = useState('');
   const [busy,     setBusy]     = useState(false);
   const [pending,  setPending]  = useState(false);
+  const [resetToken, setResetToken] = useState('');
+  const [sentReset,  setSentReset]  = useState(false);
+  const [resetDone,  setResetDone]  = useState(false);
+
+  // BK-85: auto-enter reset mode when ?token= is in the URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get('token');
+    if (t) { setResetToken(t); setMode('reset'); }
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -26,6 +38,14 @@ export default function AuthPage() {
         if (!name.trim()) { setError('Name is required'); setBusy(false); return; }
         const result = await signUp(name.trim(), email.trim(), password);
         if (result?.pending) { setPending(true); return; }
+      } else if (mode === 'forgot') {
+        await api.forgotPassword(email.trim());
+        setSentReset(true);
+      } else if (mode === 'reset') {
+        await api.resetPassword(resetToken, password);
+        setResetDone(true);
+        // Clear token from URL without reload
+        window.history.replaceState({}, '', window.location.pathname);
       } else {
         await signIn(email.trim(), password);
       }
@@ -42,6 +62,8 @@ export default function AuthPage() {
     setName('');
     setEmail('');
     setPassword('');
+    setSentReset(false);
+    setResetDone(false);
   }
 
   if (pending) {
@@ -67,6 +89,52 @@ export default function AuthPage() {
     );
   }
 
+  // BK-85: "check your email" screen after forgot-password submit
+  if (sentReset) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <div className="auth-brand">
+            <img src="/logo.svg" alt="Mound Track" className="brand-logo-img" />
+          </div>
+          <div className="auth-pending">
+            <div className="auth-pending-icon">📬</div>
+            <div className="auth-pending-title">Check Your Email</div>
+            <div className="auth-pending-msg">
+              If an account exists for that email, we've sent a password reset link. Check your inbox — it expires in 1 hour.
+            </div>
+            <button className="btn btn-ghost auth-pending-back" onClick={() => switchMode('signin')}>
+              Back to Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // BK-85: "password updated" screen after successful reset
+  if (resetDone) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <div className="auth-brand">
+            <img src="/logo.svg" alt="Mound Track" className="brand-logo-img" />
+          </div>
+          <div className="auth-pending">
+            <div className="auth-pending-icon">✅</div>
+            <div className="auth-pending-title">Password Updated</div>
+            <div className="auth-pending-msg">
+              Your password has been reset. You can now sign in with your new password.
+            </div>
+            <button className="btn btn-primary auth-pending-back" onClick={() => switchMode('signin')}>
+              Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="auth-page">
       <div className="auth-card">
@@ -75,8 +143,8 @@ export default function AuthPage() {
           <img src="/logo.svg" alt="Mound Track" className="brand-logo-img" />
         </div>
 
-        {/* Mode tabs */}
-        <div className="auth-tabs">
+        {/* Mode tabs — hidden for forgot/reset */}
+        <div className="auth-tabs" style={mode === 'forgot' || mode === 'reset' ? { display: 'none' } : {}}>
           <button
             className={`auth-tab ${mode === 'signin' ? 'active' : ''}`}
             onClick={() => switchMode('signin')}
@@ -90,6 +158,20 @@ export default function AuthPage() {
             Create Account
           </button>
         </div>
+
+        {/* Forgot/reset headings */}
+        {mode === 'forgot' && (
+          <div className="auth-mode-heading">
+            <div className="auth-mode-title">Reset Password</div>
+            <div className="auth-mode-sub">Enter your email and we'll send you a reset link.</div>
+          </div>
+        )}
+        {mode === 'reset' && (
+          <div className="auth-mode-heading">
+            <div className="auth-mode-title">Set New Password</div>
+            <div className="auth-mode-sub">Choose a new password for your account.</div>
+          </div>
+        )}
 
         {/* Form */}
         <form className="auth-form" onSubmit={handleSubmit}>
@@ -108,30 +190,37 @@ export default function AuthPage() {
             </div>
           )}
 
-          <div className="auth-field">
-            <label className="auth-label">Email</label>
-            <input
-              className="auth-input"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              autoFocus={mode === 'signin'}
-              required
-            />
-          </div>
+          {mode !== 'reset' && (
+            <div className="auth-field">
+              <label className="auth-label">Email</label>
+              <input
+                className="auth-input"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                autoFocus={mode === 'signin' || mode === 'forgot'}
+                required
+              />
+            </div>
+          )}
 
-          <div className="auth-field">
-            <label className="auth-label">Password</label>
-            <input
-              className="auth-input"
-              type="password"
-              placeholder={mode === 'signup' ? 'At least 6 characters' : '••••••••'}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
-          </div>
+          {(mode === 'signin' || mode === 'signup' || mode === 'reset') && (
+            <div className="auth-field">
+              <label className="auth-label">
+                {mode === 'reset' ? 'New Password' : 'Password'}
+              </label>
+              <input
+                className="auth-input"
+                type="password"
+                placeholder={mode === 'signup' || mode === 'reset' ? 'At least 6 characters' : '••••••••'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                autoFocus={mode === 'reset'}
+                required
+              />
+            </div>
+          )}
 
           {error && <div className="auth-error">{error}</div>}
 
@@ -140,19 +229,34 @@ export default function AuthPage() {
             type="submit"
             disabled={busy}
           >
-            {busy
-              ? (mode === 'signup' ? 'Creating account…' : 'Signing in…')
-              : (mode === 'signup' ? 'Create Account' : 'Sign In')}
+            {busy ? (
+              mode === 'signup' ? 'Creating account…' :
+              mode === 'forgot' ? 'Sending…' :
+              mode === 'reset'  ? 'Updating…' : 'Signing in…'
+            ) : (
+              mode === 'signup' ? 'Create Account' :
+              mode === 'forgot' ? 'Send Reset Link' :
+              mode === 'reset'  ? 'Update Password' : 'Sign In'
+            )}
           </button>
         </form>
 
         <p className="auth-switch">
           {mode === 'signin' ? (
-            <>Don't have an account?{' '}
+            <>
+              <button className="auth-switch-btn" onClick={() => switchMode('forgot')}>
+                Forgot password?
+              </button>
+              {' · '}
+              Don't have an account?{' '}
               <button className="auth-switch-btn" onClick={() => switchMode('signup')}>
                 Create one
               </button>
             </>
+          ) : mode === 'forgot' || mode === 'reset' ? (
+            <button className="auth-switch-btn" onClick={() => switchMode('signin')}>
+              Back to Sign In
+            </button>
           ) : (
             <>Already have an account?{' '}
               <button className="auth-switch-btn" onClick={() => switchMode('signin')}>

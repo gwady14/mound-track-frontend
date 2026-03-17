@@ -4014,6 +4014,23 @@
   font-size: 13px;
 }
 
+/* BK-85: forgot/reset mode headings */
+.auth-mode-heading {
+  padding: 4px 0 12px;
+  text-align: center;
+}
+.auth-mode-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.auth-mode-sub {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
 .admin-games-btn {
   background: none;
   border: none;
