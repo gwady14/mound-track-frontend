@@ -8,11 +8,11 @@
  * Vite dev server proxies /api → http://localhost:3001 (see vite.config.js).
  */
 
-// In production (Vercel), point directly at the Railway backend.
+// In production, point directly at the Railway backend.
 // In development, Vite proxies /api → localhost:3001.
-const BASE = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/api`
-  : '/api';
+const BASE = import.meta.env.DEV
+  ? '/api'
+  : 'https://boothcast-backend-production.up.railway.app/api';
 
 /** Generic JSON fetch with error handling */
 async function get(path, token) {
