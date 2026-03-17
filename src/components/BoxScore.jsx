@@ -159,6 +159,7 @@ function buildPitchingLines(paLog, pitchingTeamSide, pitchCounts, runnerEvents =
 
     const h   = entries.filter(p => p.isHit).length;
     const r   = entries.reduce((s, p) => s + (p.runs || 0), 0);
+    const er  = entries.reduce((s, p) => s + (p.earnedRuns ?? p.runs ?? 0), 0);
     const bb  = entries.filter(p => p.isBB).length;
     const hbp = entries.filter(p => p.isHBP).length;
     const k   = entries.filter(p => p.isK).length;
@@ -170,7 +171,7 @@ function buildPitchingLines(paLog, pitchingTeamSide, pitchCounts, runnerEvents =
     return {
       name, id: pid,
       ip:  `${Math.floor(outs / 3)}.${outs % 3}`,
-      h, r, bb, hbp, k, hr, pc,
+      h, r, er, bb, hbp, k, hr, pc,
       outs, // raw outs for totals
     };
   });
@@ -318,12 +319,12 @@ function PitchingTable({ lines, teamAbbr }) {
         <thead>
           <tr>
             <th className="bs-name-col">Pitcher</th>
-            <th>IP</th><th>H</th><th>R</th><th>BB</th><th>HBP</th><th>K</th><th>HR</th><th>PC</th>
+            <th>IP</th><th>H</th><th>R</th><th>ER</th><th>BB</th><th>HBP</th><th>K</th><th>HR</th><th>PC</th>
           </tr>
         </thead>
         <tbody>
           {lines.length === 0 ? (
-            <tr><td colSpan={9} className="bs-empty">No pitching data yet.</td></tr>
+            <tr><td colSpan={10} className="bs-empty">No pitching data yet.</td></tr>
           ) : (
             lines.map((p, i) => (
               <tr key={p.id || i}>
@@ -334,6 +335,7 @@ function PitchingTable({ lines, teamAbbr }) {
                 <td>{p.ip}</td>
                 <td>{p.h}</td>
                 <td>{p.r}</td>
+                <td>{p.er}</td>
                 <td>{p.bb || '—'}</td>
                 <td>{p.hbp || '—'}</td>
                 <td>{p.k || '—'}</td>

@@ -464,8 +464,10 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
       // Count runs that score on this play.
       // runsScored is used at the end to calculate RBI for the PA log.
       let runsScored = 0;
-      const scoreRun = (side) => {
+      let earnedRunsScored = 0;
+      const scoreRun = (side, isEarned = true) => {
         runsScored++;
+        if (isEarned) earnedRunsScored++;
         if (side === 'away') newScore.away++;
         else newScore.home++;
         const idx = Math.min(newInning - 1, 8);
@@ -483,8 +485,10 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
       const idx           = isTop ? awayBatterIdx : homeBatterIdx;
       const currentBatter = lineup[idx % Math.max(lineup.length, 1)];
       const runner        = currentBatter
-        ? { id: currentBatter.id, name: currentBatter.name, jerseyNumber: currentBatter.jerseyNumber }
-        : { id: null, name: '?' };
+        ? { id: currentBatter.id, name: currentBatter.name, jerseyNumber: currentBatter.jerseyNumber, earned: true }
+        : { id: null, name: '?', earned: true };
+      // Unearned runner — reaches via error
+      const unearnedRunner = { ...runner, earned: false };
 
       switch (key) {
           case 'out':
@@ -512,36 +516,36 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             break;
           }
 
-          case 'error': // batter reaches, shifts other runners up one
-            newBases = [runner, newBases[0], newBases[1]];
-            if (newBases[2] && newBases[0]) scoreRun(side); // simplistic
+          case 'error': // batter reaches on error — batter and run are unearned
+            newBases = [unearnedRunner, newBases[0], newBases[1]];
+            if (newBases[2] && newBases[0]) scoreRun(side, newBases[2].earned !== false); // simplistic
             break;
 
           case 'single':
             // Runners: 3B scores, 2B → 3B, 1B → 2B, batter → 1B
-            if (newBases[2]) scoreRun(side);
+            if (newBases[2]) scoreRun(side, newBases[2].earned !== false);
             newBases = [runner, newBases[0], newBases[1]];
             break;
 
           case 'double':
-            if (newBases[2]) scoreRun(side);     // 3B scores
-            if (newBases[1]) scoreRun(side);     // 2B scores
+            if (newBases[2]) scoreRun(side, newBases[2].earned !== false); // 3B scores
+            if (newBases[1]) scoreRun(side, newBases[1].earned !== false); // 2B scores
             newBases = [null, runner, newBases[0]]; // 1B → 3B, batter → 2B
             break;
 
           case 'triple':
-            if (newBases[2]) scoreRun(side);
-            if (newBases[1]) scoreRun(side);
-            if (newBases[0]) scoreRun(side);
+            if (newBases[2]) scoreRun(side, newBases[2].earned !== false);
+            if (newBases[1]) scoreRun(side, newBases[1].earned !== false);
+            if (newBases[0]) scoreRun(side, newBases[0].earned !== false);
             newBases = [null, null, runner]; // batter → 3B
             break;
 
           case 'hr':
           case 'ihr': // in-the-park HR — same scoring as regular HR
-            if (newBases[2]) scoreRun(side);
-            if (newBases[1]) scoreRun(side);
-            if (newBases[0]) scoreRun(side);
-            scoreRun(side); // batter
+            if (newBases[2]) scoreRun(side, newBases[2].earned !== false);
+            if (newBases[1]) scoreRun(side, newBases[1].earned !== false);
+            if (newBases[0]) scoreRun(side, newBases[0].earned !== false);
+            scoreRun(side, true); // batter on HR is always earned
             newBases = [null, null, null];
             break;
 
@@ -550,7 +554,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           case 'ibb': // intentional walk — force advances same as BB
           case 'ci':  // catcher's interference — batter to 1B, force advance
             // Force advances — push each occupied runner forward
-            if (newBases[0] && newBases[1] && newBases[2]) scoreRun(side);
+            if (newBases[0] && newBases[1] && newBases[2]) scoreRun(side, newBases[2].earned !== false);
             if (newBases[0] && newBases[1]) newBases[2] = newBases[1]; // 2B → 3B
             if (newBases[0]) newBases[1] = newBases[0];                // 1B → 2B
             newBases[0] = runner;                                       // batter → 1B
@@ -558,7 +562,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
 
           case 'sacfly':
             newOuts++;
-            if (newBases[2]) { scoreRun(side); newBases[2] = null; }
+            if (newBases[2]) { scoreRun(side, newBases[2].earned !== false); newBases[2] = null; }
             break;
 
           case 'dp':
@@ -572,9 +576,9 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             newOuts++;
             break;
 
-          case 'pfe': // pop foul error — batter reaches 1B, no runner advance
+          case 'pfe': // pop foul error — batter reaches 1B on error, unearned
           case 'fe':  // foul + error — same
-            newBases[0] = runner;
+            newBases[0] = unearnedRunner;
             break;
 
           default: break;
@@ -608,6 +612,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
         isHBP:       key === 'hbp' || key === 'ci',
         rbi:              ['error','fc','bi','other-out'].includes(key) ? 0 : runsScored,
         runs:             runsScored,
+        earnedRuns:       earnedRunsScored,
         fieldingNotation: detail.fieldingNotation ?? null,
         battedBallType:   detail.battedBallType   ?? null,
         pitches:          prev.currentPAPitches   || [],  // BK-24
