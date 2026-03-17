@@ -1,0 +1,32 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#0d1117"/>
+  <!-- Subtle grid lines -->
+  <line x1="0" y1="315" x2="1200" y2="315" stroke="#1e2a38" stroke-width="1"/>
+  <line x1="600" y1="0" x2="600" y2="630" stroke="#1e2a38" stroke-width="1"/>
+  <!-- Accent bar -->
+  <rect x="0" y="0" width="6" height="630" fill="#3b82f6"/>
+  <!-- Baseball icon -->
+  <text x="100" y="360" font-family="Arial" font-size="160" opacity="0.08">⚾</text>
+  <!-- MOUND bold -->
+  <text x="100" y="310"
+    font-family="'Arial Narrow','Impact','Haettenschweiler',sans-serif"
+    font-size="120" font-weight="900" font-style="italic"
+    fill="white" letter-spacing="-1">MOUND</text>
+  <!-- TRACK outline -->
+  <text x="490" y="310"
+    font-family="'Arial Narrow','Impact','Haettenschweiler',sans-serif"
+    font-size="120" font-weight="400" font-style="italic"
+    fill="none" stroke="white" stroke-width="2"
+    letter-spacing="3">TRACK</text>
+  <!-- Tagline -->
+  <text x="100" y="375"
+    font-family="Inter,Arial,sans-serif"
+    font-size="32" font-weight="400"
+    fill="#94a3b8" letter-spacing="4">BASEBALL SCORING &amp; ANALYTICS</text>
+  <!-- URL -->
+  <text x="100" y="530"
+    font-family="'JetBrains Mono',monospace,Arial"
+    font-size="24" font-weight="400"
+    fill="#3b82f6" letter-spacing="1">moundtrack.com</text>
+</svg>
