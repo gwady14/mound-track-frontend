@@ -103,6 +103,7 @@ export default function AdminPanel({ onClose, onLoad }) {
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState('');
   const [deleting,  setDeleting]  = useState(null);
+  const [approving, setApproving] = useState(null);
   const [expanded,  setExpanded]  = useState(null); // userId with games open
 
   useEffect(() => {
@@ -126,6 +127,18 @@ export default function AdminPanel({ onClose, onLoad }) {
     }
   }
 
+  async function handleStatusChange(id, status) {
+    setApproving(id);
+    try {
+      await api.adminUpdateUserStatus(id, status, token);
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, status } : u));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setApproving(null);
+    }
+  }
+
   function toggleExpand(id) {
     setExpanded(prev => prev === id ? null : id);
   }
@@ -138,6 +151,9 @@ export default function AdminPanel({ onClose, onLoad }) {
             <span className="gh-title">Admin — Users</span>
             <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
               {users.length} account{users.length !== 1 ? 's' : ''}
+              {users.filter(u => u.status === 'pending').length > 0 && (
+                <span className="admin-pending-badge">{users.filter(u => u.status === 'pending').length} pending</span>
+              )}
             </span>
           </div>
           <button className="gh-close" onClick={onClose}>✕</button>
@@ -164,11 +180,16 @@ export default function AdminPanel({ onClose, onLoad }) {
               <span>User</span>
               <span className="admin-col-games">Games</span>
               <span className="admin-col-role">Role</span>
+              <span className="admin-col-status">Status</span>
               <span className="admin-col-joined">Joined</span>
               <span className="admin-col-action" />
             </div>
 
-            {users.map(u => (
+            {[...users].sort((a, b) => {
+              if (a.status === 'pending' && b.status !== 'pending') return -1;
+              if (b.status === 'pending' && a.status !== 'pending') return 1;
+              return 0;
+            }).map(u => (
               <React.Fragment key={u.id}>
                 <div className={`admin-user-row ${u.id === me.id ? 'admin-user-me' : ''}`}>
                   {/* User info */}
@@ -202,10 +223,34 @@ export default function AdminPanel({ onClose, onLoad }) {
                     <span className={`admin-role-badge ${u.role}`}>{u.role}</span>
                   </span>
 
+                  <span className="admin-col-status">
+                    <span className={`admin-status-badge ${u.status || 'approved'}`}>{u.status || 'approved'}</span>
+                  </span>
+
                   <span className="admin-col-joined admin-date">{fmtDate(u.createdAt)}</span>
 
                   <span className="admin-col-action">
-                    {u.id !== me.id && (
+                    {u.id !== me.id && u.status === 'pending' && (
+                      <>
+                        <button
+                          className="btn btn-sm btn-primary"
+                          onClick={() => handleStatusChange(u.id, 'approved')}
+                          disabled={approving === u.id}
+                          title="Approve this user"
+                        >
+                          {approving === u.id ? '…' : 'Approve'}
+                        </button>
+                        <button
+                          className="btn btn-sm btn-ghost gh-delete-btn"
+                          onClick={() => handleStatusChange(u.id, 'rejected')}
+                          disabled={approving === u.id}
+                          title="Reject this user"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    {u.id !== me.id && u.status !== 'pending' && (
                       <button
                         className="btn btn-sm btn-ghost gh-delete-btn"
                         onClick={() => handleDelete(u.id)}

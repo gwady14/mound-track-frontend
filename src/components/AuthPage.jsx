@@ -15,6 +15,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [error,    setError]    = useState('');
   const [busy,     setBusy]     = useState(false);
+  const [pending,  setPending]  = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -23,7 +24,8 @@ export default function AuthPage() {
     try {
       if (mode === 'signup') {
         if (!name.trim()) { setError('Name is required'); setBusy(false); return; }
-        await signUp(name.trim(), email.trim(), password);
+        const result = await signUp(name.trim(), email.trim(), password);
+        if (result?.pending) { setPending(true); return; }
       } else {
         await signIn(email.trim(), password);
       }
@@ -40,6 +42,29 @@ export default function AuthPage() {
     setName('');
     setEmail('');
     setPassword('');
+  }
+
+  if (pending) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <div className="auth-brand">
+            <img src="/logo.svg" alt="Mound Track" className="brand-logo-img" />
+          </div>
+          <div className="auth-pending">
+            <div className="auth-pending-icon">⏳</div>
+            <div className="auth-pending-title">Account Pending Approval</div>
+            <div className="auth-pending-msg">
+              Your account has been created and is awaiting admin approval.
+              You'll be able to sign in once an admin reviews your request.
+            </div>
+            <button className="btn btn-ghost auth-pending-back" onClick={() => { setPending(false); switchMode('signin'); }}>
+              Back to Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

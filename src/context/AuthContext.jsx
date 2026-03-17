@@ -48,6 +48,7 @@ export function AuthProvider({ children }) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Sign-up failed');
+    if (data.pending) return { pending: true };   // account awaiting admin approval
     _persist(data.token, data.user);
     return data.user;
   }, [_persist]);

@@ -50,6 +50,21 @@ async function del(path, token) {
   return res.json();
 }
 
+async function patch(path, body, token) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'PATCH',
+    headers,
+    body:   JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const b = await res.json().catch(() => ({}));
+    throw new Error(b.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 // ─── API methods ────────────────────────────────────────────────────────────
 
 export const api = {
@@ -163,4 +178,7 @@ export const api = {
 
   /** Admin: delete a user */
   adminDeleteUser: (id, token) => del(`/admin/users/${id}`, token),
+
+  /** Admin: approve or reject a user ('approved' | 'rejected' | 'pending') */
+  adminUpdateUserStatus: (id, status, token) => patch(`/admin/users/${id}/status`, { status }, token),
 };
