@@ -1,5 +1,5 @@
 /**
- * Game Track API client
+ * Mound Track API client
  *
  * All external data (MLB Stats, FanGraphs, Baseball Savant) is fetched through
  * the local backend proxy on port 3001. This keeps API keys server-side and
