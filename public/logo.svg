@@ -1,9 +1,9 @@
 <svg width="360" height="52" viewBox="0 0 360 52" xmlns="http://www.w3.org/2000/svg">
-  <text x="0" y="40"
+  <text x="30" y="40"
     font-family="'Arial Narrow','Impact','Haettenschweiler',sans-serif"
     font-size="42" font-weight="900" font-style="italic"
     fill="white" letter-spacing="-0.5">MOUND</text>
-  <text x="134" y="40"
+  <text x="164" y="40"
     font-family="'Arial Narrow','Impact','Haettenschweiler',sans-serif"
     font-size="42" font-weight="400" font-style="italic"
     fill="none" stroke="white" stroke-width="1.3"
