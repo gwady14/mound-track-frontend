@@ -11,6 +11,10 @@ const AuthContext = createContext(null);
 
 const TOKEN_KEY = 'gametrack_auth_token';
 
+const AUTH_BASE = import.meta.env.DEV
+  ? '/api/auth'
+  : 'https://boothcast-backend-production.up.railway.app/api/auth';
+
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);  // { id, name, email, role }
   const [token,   setToken]   = useState(() => localStorage.getItem(TOKEN_KEY));
@@ -19,7 +23,7 @@ export function AuthProvider({ children }) {
   // Validate the stored token on mount
   useEffect(() => {
     if (!token) { setLoading(false); return; }
-    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${AUTH_BASE}/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(u => setUser(u))
       .catch(() => {
@@ -37,7 +41,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signUp = useCallback(async (name, email, password) => {
-    const res  = await fetch('/api/auth/signup', {
+    const res  = await fetch(`${AUTH_BASE}/signup`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ name, email, password }),
@@ -49,7 +53,7 @@ export function AuthProvider({ children }) {
   }, [_persist]);
 
   const signIn = useCallback(async (email, password) => {
-    const res  = await fetch('/api/auth/signin', {
+    const res  = await fetch(`${AUTH_BASE}/signin`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ email, password }),
