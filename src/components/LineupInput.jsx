@@ -33,6 +33,7 @@ export default function LineupInput({ onSubmit }) {
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [loadingRoster, setLoadingRoster] = useState({ home: false, away: false });
   const [positionWarning, setPositionWarning] = useState('');
+  const [duplicateError,  setDuplicateError]  = useState(''); // BK-75
 
   // ── Fetch team list on mount ──────────────────────────────────────────────
   useEffect(() => {
@@ -124,6 +125,20 @@ export default function LineupInput({ onSubmit }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!canSubmit) return;
+
+    // BK-75: reject if any player appears more than once in either lineup
+    const hasDupes = (lineup) => {
+      const ids = lineup.filter(Boolean).map(p => String(p.id));
+      return ids.length !== new Set(ids).size;
+    };
+    if (hasDupes(homeLineup) || hasDupes(awayLineup)) {
+      const parts = [];
+      if (hasDupes(awayLineup)) parts.push('away');
+      if (hasDupes(homeLineup)) parts.push('home');
+      setDuplicateError(`Duplicate player in ${parts.join(' and ')} lineup — each player can only appear once.`);
+      return;
+    }
+    setDuplicateError('');
 
     // Warn if any filled lineup slot is missing a position
     const missingHome = homeLineup.filter((p, i) => p && !homePositions[i]).length;
@@ -252,6 +267,11 @@ export default function LineupInput({ onSubmit }) {
           <span className="dim" style={{ fontSize: 12 }}>
             Select both teams, fill lineups, and choose starting pitchers
           </span>
+        )}
+        {duplicateError && (
+          <div className="lineup-position-warning" style={{ borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.08)', color: '#f87171' }}>
+            <span>⛔ {duplicateError}</span>
+          </div>
         )}
         {positionWarning && (
           <div className="lineup-position-warning">
