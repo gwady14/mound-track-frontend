@@ -220,6 +220,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
   const [showPitchSeq,      setShowPitchSeq]      = useState(true);  // BK-39: show/hide PA pitch sequences
   const [bipFCRetiredBase, setBipFCRetiredBase] = useState(null); // 0|1|2 — which base runner was retired on FC
   const [bipFCIsDP,        setBipFCIsDP]        = useState(false); // true = FC was a double play
+  const [bipDPBatterOut,   setBipDPBatterOut]   = useState(true);  // BK-48: true = batter out on DP, false = reaches on E
   const [tagUpActive,      setTagUpActive]      = useState(false); // BK-68: tag-up prompt after fly/LD outs
   const [tagUpRunners,     setTagUpRunners]     = useState([]);    // [{runner, fromBase, dest}]
   const [lineScoreOpen,     setLineScoreOpen]     = useState(true);  // collapsible line score
@@ -590,11 +591,20 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             if (newBases[2]) { scoreRun(side, newBases[2].earned !== false, newBases[2]); newBases[2] = null; }
             break;
 
-          case 'dp':
-            newOuts = Math.min(newOuts + 2, 3);
-            // Remove lead runner
-            if (newBases[0]) newBases[0] = null;
+          case 'dp': {
+            const batterOut = detail.batterOut !== false; // BK-48: default true
+            if (batterOut) {
+              // Standard GDP: batter is out, 1B runner is out → 2 outs
+              newOuts = Math.min(newOuts + 2, 3);
+              if (newBases[0]) newBases[0] = null;
+            } else {
+              // Batter reaches 1B on throwing error; 1B runner is still out → 1 out
+              newOuts = Math.min(newOuts + 1, 3);
+              if (newBases[0]) newBases[0] = null;
+              newBases[0] = { ...unearnedRunner };
+            }
             break;
+          }
 
           case 'bi':       // batter interference = out, no base advancement
           case 'other-out':
@@ -725,6 +735,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
     setBipPendingOutcome(null);
     setBipFCRetiredBase(null);
     setBipFCIsDP(false);
+    setBipDPBatterOut(true);
     setBipAdjustRunners([]);
     setBipPendingNotationStr(null);
   }, []);
@@ -773,6 +784,13 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
   }, [bipContact, bases, cancelBIP, addFoul, goToNotation]);
 
   const confirmBIPFlag = useCallback((finalKey) => {
+    if (finalKey === 'dp') {
+      // BK-48: ask whether batter is out or reaches on E before going to notation
+      setBipDPBatterOut(true);
+      setBipStep('dp-batter');
+      setMenuFocusIdx(0);
+      return;
+    }
     goToNotation(finalKey);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goToNotation]);
@@ -797,6 +815,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
       battedBallType:   bipContact?.toUpperCase(),
       fieldingNotation: notation,
       ...(bipPendingOutcome === 'fc' ? { retiredBase: bipFCRetiredBase, isDP: bipFCIsDP } : {}),
+      ...(bipPendingOutcome === 'dp' ? { batterOut: bipDPBatterOut } : {}),
     });
     cancelBIP();
     // BK-68: after fly/LD outs with runners on base, prompt for tag-up advancement
@@ -808,7 +827,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
       setTagUpActive(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bipNotation, bipPendingOutcome, bipContact, bipFCRetiredBase, bipFCIsDP, cancelBIP, applyOutcome, appendPitch, selectedPitchType, bases]);
+  }, [bipNotation, bipPendingOutcome, bipContact, bipFCRetiredBase, bipFCIsDP, bipDPBatterOut, cancelBIP, applyOutcome, appendPitch, selectedPitchType, bases]);
 
   // BK-68: commit tag-up runner advancements
   const confirmTagUp = useCallback(() => {
@@ -1139,6 +1158,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
     menuFocusIdx, setMenuFocusIdx,
     selectBIPContact, selectBIPOutcome, confirmBIPFlag,
     selectFCRunner, confirmFCDP, bipFCRetiredBase, bipFCIsDP,
+    bipDPBatterOut, setBipDPBatterOut, goToNotation,
     selectedPitchType, setSelectedPitchType,
     displayArsenal,
     bipNotation, setBipNotation, confirmNotation,
@@ -1166,7 +1186,8 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           else { r.setBipStep('outcome'); }
           return;
         }
-        if (bipStep === 'flag')    { e.preventDefault(); r.setBipStep('outcome'); return; }
+        if (bipStep === 'flag')      { e.preventDefault(); r.setBipStep('outcome'); return; }
+        if (bipStep === 'dp-batter') { e.preventDefault(); r.setBipStep('flag'); return; }
         if (bipStep === 'fc-dp')     { e.preventDefault(); r.setBipStep('fc-runner'); return; }
         if (bipStep === 'fc-runner') { e.preventDefault(); r.setBipStep('outcome');   return; }
         if (bipStep === 'outcome') { e.preventDefault(); r.setBipStep('contact'); return; }
@@ -1206,6 +1227,8 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           count = r.bases.filter(Boolean).length + 1; // occupied bases + "Unspecified"
         } else if (r.bipStep === 'fc-dp') {
           count = 2;
+        } else if (r.bipStep === 'dp-batter') {
+          count = 2;
         }
         if (count === 0) return;
         if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
@@ -1234,6 +1257,10 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           } else if (r.bipStep === 'fc-dp') {
             if (idx === 0) r.confirmFCDP(false);
             else r.confirmFCDP(true);
+          } else if (r.bipStep === 'dp-batter') {
+            const batterOut = idx === 0;
+            r.setBipDPBatterOut(batterOut);
+            r.goToNotation('dp');
           }
         }
         return;
@@ -1775,6 +1802,28 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                     Double Play
                   </button>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* ── BK-48: DP batter status ──────────────────────────────── */}
+          {bipStep === 'dp-batter' && (
+            <div className="bip-layer">
+              <button className="bip-back-btn" onClick={() => setBipStep('flag')}>← Back <kbd className="pitch-pad-kbd">⌫</kbd></button>
+              <div className="bip-label">Did the batter reach?</div>
+              <div className="bip-flag-row">
+                <button
+                  className={`bip-outcome-btn out-btn${menuFocusIdx === 0 ? ' kbd-focused' : ''}`}
+                  onClick={() => { setBipDPBatterOut(true);  goToNotation('dp'); }}
+                >
+                  Batter Out
+                </button>
+                <button
+                  className={`bip-outcome-btn neutral-btn${menuFocusIdx === 1 ? ' kbd-focused' : ''}`}
+                  onClick={() => { setBipDPBatterOut(false); goToNotation('dp'); }}
+                >
+                  Reaches (E)
+                </button>
               </div>
             </div>
           )}
