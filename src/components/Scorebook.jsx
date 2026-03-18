@@ -610,8 +610,8 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
         }
 
       // ── Log this plate appearance ──────────────────────────────────────────
-      // Errors and fielder's choice don't earn RBI; everything else credits
-      // runs scored on the play as RBI.
+      // Errors don't earn RBI; FC earns RBI when a run scores (BK-51);
+      // everything else credits runs scored on the play as RBI.
       // (lineup / idx / currentBatter already computed above for runner tracking)
 
       // Snapshot the pitcher on the mound for this PA so the play-by-play
@@ -641,7 +641,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
         isK:         key === 'k' || key === 'kl',
         isBB:        key === 'bb' || key === 'ibb',
         isHBP:       key === 'hbp' || key === 'ci',
-        rbi:              ['error','fc','bi','other-out'].includes(key) ? 0 : runsScored,
+        rbi:              ['error','bi','other-out'].includes(key) ? 0 : runsScored, // BK-51: FC earns RBI when a run scores
         runs:             ownRunsScored,
         earnedRuns:       ownEarnedRuns,
         inheritedRunCredits: inheritedRunCredits.length > 0 ? inheritedRunCredits : undefined,
