@@ -88,6 +88,8 @@ export default function App() {
   const [loadError,       setLoadError]       = useState(null);
   const [gameState,       setGameState]       = useState(saved?.gameState ?? EMPTY_GAME);
   const [showSummary,     setShowSummary]     = useState(false);
+  const [fetchError,      setFetchError]      = useState(null); // BK-79: background fetch failure toast
+  const fetchErrorTimerRef = useRef(null);
 
   // Persist game state to localStorage whenever it changes
   useEffect(() => {
@@ -101,6 +103,13 @@ export default function App() {
       localStorage.removeItem(STORAGE_KEY);
     }
   }, [gameData, gameState, tab]);
+
+  // BK-79: show a dismissible toast when any background data fetch fails
+  const showFetchError = useCallback(() => {
+    setFetchError('Some player data failed to load — stats panels may be incomplete.');
+    if (fetchErrorTimerRef.current) clearTimeout(fetchErrorTimerRef.current);
+    fetchErrorTimerRef.current = setTimeout(() => setFetchError(null), 6000);
+  }, []);
 
   // ── Handle lineup form submission ─────────────────────────────────────────
   const handleLineupSubmit = useCallback(async (formData) => {
@@ -280,7 +289,7 @@ export default function App() {
           }
           setGameData(p => p ? { ...p, bvpById: { ...p.bvpById, ...newEntries } } : p);
         })
-        .catch(console.error);
+        .catch(err => { console.error(err); showFetchError(); });
       return prev;
     });
 
@@ -373,7 +382,7 @@ export default function App() {
             for (const r of results) if (r.batterId) entries[`${r.batterId}_${pitcherId}`] = r;
             setGameData(p => p ? { ...p, bvpById: { ...p.bvpById, ...entries } } : p);
           })
-          .catch(console.error);
+          .catch(err => { console.error(err); showFetchError(); });
       }
       return prev;
     });
@@ -675,6 +684,14 @@ export default function App() {
       </main>
 
     </div>
+
+    {/* BK-79: background fetch failure toast */}
+    {fetchError && (
+      <div className="fetch-error-toast">
+        <span>⚠ {fetchError}</span>
+        <button onClick={() => setFetchError(null)} aria-label="Dismiss">×</button>
+      </div>
+    )}
 
     {/* ── Print-only box score — rendered OUTSIDE .app-root so @media print can show it
          while hiding .app-root. A child of a display:none parent can't be shown even
