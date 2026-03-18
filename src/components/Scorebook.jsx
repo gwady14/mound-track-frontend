@@ -1356,8 +1356,9 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
       {/* ── Live Game State ──────────────────────────────────────────────── */}
       <div className="scorebook-controls-row">
 
-        {/* Left column: diamond + pitch controls + PBP */}
+        {/* Left column: [diamond + pitch controls] on top, PBP below */}
         <div className="scorebook-left-col">
+        <div className="scorebook-top-row">
 
         {/* Diamond + Count */}
         <div className="card diamond-card">
@@ -1891,6 +1892,8 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             </div>
           </div>
         )}
+
+        </div>{/* end scorebook-top-row */}
 
         {/* ── Play-by-play log — below diamond + pitch controls */}
         <div className="scorebook-pbp-col">
