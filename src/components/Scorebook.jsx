@@ -1356,6 +1356,9 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
       {/* ── Live Game State ──────────────────────────────────────────────── */}
       <div className="scorebook-controls-row">
 
+        {/* Left column: diamond + pitch controls + PBP */}
+        <div className="scorebook-left-col">
+
         {/* Diamond + Count */}
         <div className="card diamond-card">
           <div className="inning-display">
@@ -1889,7 +1892,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           </div>
         )}
 
-        {/* ── Play-by-play log — inline, fills gap between controls and lineup */}
+        {/* ── Play-by-play log — below diamond + pitch controls */}
         <div className="scorebook-pbp-col">
           <PlayByPlayLog
             paLog={paLog || []}
@@ -1902,6 +1905,8 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             onDeleteRunner={deleteRunnerEvent}
           />
         </div>
+
+        </div>{/* end scorebook-left-col */}
 
         {/* Current Batter + Lineup */}
         <div className="card batter-card">
