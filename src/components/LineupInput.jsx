@@ -332,6 +332,17 @@ function TeamLineupCard({
 
             {BATTING_POSITIONS.map((pos, i) => {
               const taken = new Set(positions.filter((p, j) => j !== i && p));
+              // BK-86: split batters into available vs already slotted elsewhere
+              const selectedIds  = new Set(lineup.filter((p, j) => j !== i && p).map(p => String(p.id)));
+              const availBatters = batters.filter(p => !selectedIds.has(String(p.id)));
+              const usedBatters  = batters.filter(p =>  selectedIds.has(String(p.id)));
+              const renderOption = p => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                  {p.position?.abbreviation ? ` (${p.position.abbreviation})` : ''}
+                  {p.batSide ? ` [${p.batSide}]` : ''}
+                </option>
+              );
               return (
               <div key={i} className="lineup-slot">
                 <span className="slot-number">{i + 1}</span>
@@ -355,13 +366,12 @@ function TeamLineupCard({
                   onChange={e => onLineupChange(i, e.target.value)}
                 >
                   <option value="">— select batter —</option>
-                  {batters.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                      {p.position?.abbreviation ? ` (${p.position.abbreviation})` : ''}
-                      {p.batSide ? ` [${p.batSide}]` : ''}
-                    </option>
-                  ))}
+                  {availBatters.map(renderOption)}
+                  {usedBatters.length > 0 && (
+                    <optgroup label="Already in lineup">
+                      {usedBatters.map(renderOption)}
+                    </optgroup>
+                  )}
                 </select>
               </div>
               );
