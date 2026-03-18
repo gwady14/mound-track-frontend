@@ -1074,7 +1074,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
     ? ((gameData.arsenalById || {})[currentPitcherForArsenal.id] || [])
     : [];
   const displayArsenal = rawArsenal.length > 0
-    ? [...rawArsenal].sort((a, b) => (b.pct || 0) - (a.pct || 0))
+    ? [...rawArsenal].sort((a, b) => (b.pct || 0) - (a.pct || 0)).slice(0, 5)
     : FALLBACK_ARSENAL;
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
