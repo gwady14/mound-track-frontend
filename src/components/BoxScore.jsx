@@ -144,6 +144,9 @@ function buildPitchingLines(paLog, pitchingTeamSide, pitchCounts, runnerEvents =
     }
   }
 
+  // BK-63: all entries for this batting side, needed to find inherited run credits
+  const allTeamEntries = Object.values(map).flatMap(p => p.entries);
+
   return order.map(pid => {
     const { name, entries } = map[pid];
 
@@ -158,8 +161,17 @@ function buildPitchingLines(paLog, pitchingTeamSide, pitchCounts, runnerEvents =
     const outs = paOuts + (extraOuts[pid] || 0);
 
     const h   = entries.filter(p => p.isHit).length;
-    const r   = entries.reduce((s, p) => s + (p.runs || 0), 0);
-    const er  = entries.reduce((s, p) => s + (p.earnedRuns ?? p.runs ?? 0), 0);
+    // BK-63: own runs + inherited runners scored (credited back from other pitchers' PAs)
+    const r   = entries.reduce((s, p) => s + (p.runs || 0), 0)
+              + allTeamEntries.reduce((s, pa) =>
+                  s + (pa.inheritedRunCredits || [])
+                    .filter(c => c.pitcherId === pid)
+                    .reduce((cs, c) => cs + c.runs, 0), 0);
+    const er  = entries.reduce((s, p) => s + (p.earnedRuns ?? p.runs ?? 0), 0)
+              + allTeamEntries.reduce((s, pa) =>
+                  s + (pa.inheritedRunCredits || [])
+                    .filter(c => c.pitcherId === pid)
+                    .reduce((cs, c) => cs + c.earnedRuns, 0), 0);
     const bb  = entries.filter(p => p.isBB).length;
     const hbp = entries.filter(p => p.isHBP).length;
     const k   = entries.filter(p => p.isK).length;

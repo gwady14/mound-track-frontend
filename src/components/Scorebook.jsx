@@ -485,34 +485,56 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
       let newIsTop  = isTop;
       let newInningScores = inningScores.map(r => ({ ...r }));
 
-      // Count runs that score on this play.
-      // runsScored is used at the end to calculate RBI for the PA log.
-      let runsScored = 0;
-      let earnedRunsScored = 0;
-      const scoreRun = (side, isEarned = true) => {
-        runsScored++;
-        if (isEarned) earnedRunsScored++;
-        if (side === 'away') newScore.away++;
-        else newScore.home++;
-        const idx = Math.min(newInning - 1, 8);
-        if (side === 'away') {
-          newInningScores[idx].away = (newInningScores[idx].away || 0) + 1;
-        } else {
-          newInningScores[idx].home = (newInningScores[idx].home || 0) + 1;
-        }
-      };
-
       const side = isTop ? 'away' : 'home';
+
+      // BK-63: snapshot pitcher before runner creation so inherited-runner attribution works
+      const currentPitcher = isTop
+        ? (gameData.currentHomePitcher || gameData.homePitcher)
+        : (gameData.currentAwayPitcher || gameData.awayPitcher);
 
       // Identify the current batter so they can be placed on base as a runner.
       const lineup        = isTop ? awayLineup : homeLineup;
       const idx           = isTop ? awayBatterIdx : homeBatterIdx;
       const currentBatter = lineup[idx % Math.max(lineup.length, 1)];
+      // BK-63: tag each runner with the pitcher who allowed them on base
       const runner        = currentBatter
-        ? { id: currentBatter.id, name: currentBatter.name, jerseyNumber: currentBatter.jerseyNumber, earned: true }
-        : { id: null, name: '?', earned: true };
+        ? { id: currentBatter.id, name: currentBatter.name, jerseyNumber: currentBatter.jerseyNumber, earned: true,
+            allowedByPitcherId: currentPitcher?.id ?? null, allowedByPitcherName: currentPitcher?.name ?? null }
+        : { id: null, name: '?', earned: true,
+            allowedByPitcherId: currentPitcher?.id ?? null, allowedByPitcherName: currentPitcher?.name ?? null };
       // Unearned runner — reaches via error
       const unearnedRunner = { ...runner, earned: false };
+
+      // Count runs that score on this play.
+      // runsScored = total (used for score updates and batter RBI).
+      // ownRunsScored = runs charged to currentPitcher (own runners scored).
+      // inheritedRunMap = runs that score off inherited runners, keyed by original pitcher.
+      let runsScored    = 0;
+      let ownRunsScored = 0;
+      let ownEarnedRuns = 0;
+      const inheritedRunMap = {}; // { [pitcherId]: { pitcherName, runs, earnedRuns } }
+
+      const scoreRun = (side, isEarned = true, runnerObj = null) => {
+        runsScored++;
+        if (side === 'away') newScore.away++;
+        else newScore.home++;
+        const scoreIdx = Math.min(newInning - 1, 8);
+        if (side === 'away') newInningScores[scoreIdx].away = (newInningScores[scoreIdx].away || 0) + 1;
+        else                 newInningScores[scoreIdx].home = (newInningScores[scoreIdx].home || 0) + 1;
+        // BK-63: attribute run to the pitcher who put the runner on base
+        const allowedBy = runnerObj?.allowedByPitcherId;
+        const isOwn = !allowedBy || allowedBy === (currentPitcher?.id ?? null);
+        if (isOwn) {
+          ownRunsScored++;
+          if (isEarned) ownEarnedRuns++;
+        } else {
+          if (!inheritedRunMap[allowedBy]) {
+            inheritedRunMap[allowedBy] = { pitcherName: runnerObj.allowedByPitcherName || '?', runs: 0, earnedRuns: 0 };
+          }
+          inheritedRunMap[allowedBy].runs++;
+          if (isEarned) inheritedRunMap[allowedBy].earnedRuns++;
+        }
+      };
 
       switch (key) {
           case 'out':
@@ -542,18 +564,18 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
 
           case 'error': // batter reaches on error — batter and run are unearned
             newBases = [unearnedRunner, newBases[0], newBases[1]];
-            if (newBases[2] && newBases[0]) scoreRun(side, newBases[2].earned !== false); // simplistic
+            if (newBases[2] && newBases[0]) scoreRun(side, newBases[2].earned !== false, newBases[2]); // simplistic
             break;
 
           case 'single':
             // BK-54: use runnerOverride if scorer manually adjusted advancement
             if (detail?.runnerOverride) {
               const { newBases: nb, scored } = detail.runnerOverride;
-              scored.forEach(r => scoreRun(side, r.earned !== false));
+              scored.forEach(r => scoreRun(side, r.earned !== false, r));
               newBases = [...nb];
             } else {
               // Default: 3B scores, 2B → 3B, 1B → 2B, batter → 1B
-              if (newBases[2]) scoreRun(side, newBases[2].earned !== false);
+              if (newBases[2]) scoreRun(side, newBases[2].earned !== false, newBases[2]);
               newBases = [runner, newBases[0], newBases[1]];
             }
             break;
@@ -561,11 +583,11 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           case 'double':
             if (detail?.runnerOverride) {
               const { newBases: nb, scored } = detail.runnerOverride;
-              scored.forEach(r => scoreRun(side, r.earned !== false));
+              scored.forEach(r => scoreRun(side, r.earned !== false, r));
               newBases = [...nb];
             } else {
-              if (newBases[2]) scoreRun(side, newBases[2].earned !== false); // 3B scores
-              if (newBases[1]) scoreRun(side, newBases[1].earned !== false); // 2B scores
+              if (newBases[2]) scoreRun(side, newBases[2].earned !== false, newBases[2]); // 3B scores
+              if (newBases[1]) scoreRun(side, newBases[1].earned !== false, newBases[1]); // 2B scores
               newBases = [null, runner, newBases[0]]; // 1B → 3B, batter → 2B
             }
             break;
@@ -573,22 +595,22 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           case 'triple':
             if (detail?.runnerOverride) {
               const { newBases: nb, scored } = detail.runnerOverride;
-              scored.forEach(r => scoreRun(side, r.earned !== false));
+              scored.forEach(r => scoreRun(side, r.earned !== false, r));
               newBases = [...nb];
             } else {
-              if (newBases[2]) scoreRun(side, newBases[2].earned !== false);
-              if (newBases[1]) scoreRun(side, newBases[1].earned !== false);
-              if (newBases[0]) scoreRun(side, newBases[0].earned !== false);
+              if (newBases[2]) scoreRun(side, newBases[2].earned !== false, newBases[2]);
+              if (newBases[1]) scoreRun(side, newBases[1].earned !== false, newBases[1]);
+              if (newBases[0]) scoreRun(side, newBases[0].earned !== false, newBases[0]);
               newBases = [null, null, runner]; // batter → 3B
             }
             break;
 
           case 'hr':
           case 'ihr': // in-the-park HR — same scoring as regular HR
-            if (newBases[2]) scoreRun(side, newBases[2].earned !== false);
-            if (newBases[1]) scoreRun(side, newBases[1].earned !== false);
-            if (newBases[0]) scoreRun(side, newBases[0].earned !== false);
-            scoreRun(side, true); // batter on HR is always earned
+            if (newBases[2]) scoreRun(side, newBases[2].earned !== false, newBases[2]);
+            if (newBases[1]) scoreRun(side, newBases[1].earned !== false, newBases[1]);
+            if (newBases[0]) scoreRun(side, newBases[0].earned !== false, newBases[0]);
+            scoreRun(side, true, runner); // batter on HR is always earned
             newBases = [null, null, null];
             break;
 
@@ -597,7 +619,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           case 'ibb': // intentional walk — force advances same as BB
           case 'ci':  // catcher's interference — batter to 1B, force advance
             // Force advances — push each occupied runner forward
-            if (newBases[0] && newBases[1] && newBases[2]) scoreRun(side, newBases[2].earned !== false);
+            if (newBases[0] && newBases[1] && newBases[2]) scoreRun(side, newBases[2].earned !== false, newBases[2]);
             if (newBases[0] && newBases[1]) newBases[2] = newBases[1]; // 2B → 3B
             if (newBases[0]) newBases[1] = newBases[0];                // 1B → 2B
             newBases[0] = runner;                                       // batter → 1B
@@ -605,7 +627,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
 
           case 'sacfly':
             newOuts++;
-            if (newBases[2]) { scoreRun(side, newBases[2].earned !== false); newBases[2] = null; }
+            if (newBases[2]) { scoreRun(side, newBases[2].earned !== false, newBases[2]); newBases[2] = null; }
             break;
 
           case 'dp':
@@ -634,9 +656,15 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
 
       // Snapshot the pitcher on the mound for this PA so the play-by-play
       // log can show "off [pitcher last name]" even after pitching changes.
-      const currentPitcher = isTop
-        ? (gameData.currentHomePitcher || gameData.homePitcher)
-        : (gameData.currentAwayPitcher || gameData.awayPitcher);
+      // (currentPitcher already defined above for inherited-runner tracking — BK-63)
+
+      // BK-63: build inherited run credits so BoxScore can attribute them to the original pitcher
+      const inheritedRunCredits = Object.entries(inheritedRunMap).map(([pitcherId, data]) => ({
+        pitcherId,
+        pitcherName: data.pitcherName,
+        runs:        data.runs,
+        earnedRuns:  data.earnedRuns,
+      }));
 
       const paEntry = currentBatter ? {
         batterId:    currentBatter.id,
@@ -654,8 +682,9 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
         isBB:        key === 'bb' || key === 'ibb',
         isHBP:       key === 'hbp' || key === 'ci',
         rbi:              ['error','fc','bi','other-out'].includes(key) ? 0 : runsScored,
-        runs:             runsScored,
-        earnedRuns:       earnedRunsScored,
+        runs:             ownRunsScored,
+        earnedRuns:       ownEarnedRuns,
+        inheritedRunCredits: inheritedRunCredits.length > 0 ? inheritedRunCredits : undefined,
         fieldingNotation: detail.fieldingNotation ?? null,
         battedBallType:   detail.battedBallType   ?? null,
         pitches:          prev.currentPAPitches   || [],  // BK-24
