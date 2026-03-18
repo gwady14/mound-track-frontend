@@ -193,6 +193,28 @@ function PitchModalILP({ onSelect, focused }) {
   );
 }
 
+// BK-54: Compute default runner advancement for single/double/triple
+function computeDefaultAdvancement(hitType, bases, batter) {
+  const runners = [];
+  if (hitType === 'single') {
+    if (bases[2]) runners.push({ runner: bases[2], from: 2,        dest: 'score' });
+    if (bases[1]) runners.push({ runner: bases[1], from: 1,        dest: 2       });
+    if (bases[0]) runners.push({ runner: bases[0], from: 0,        dest: 1       });
+                  runners.push({ runner: batter,   from: 'batter', dest: 0       });
+  } else if (hitType === 'double') {
+    if (bases[2]) runners.push({ runner: bases[2], from: 2,        dest: 'score' });
+    if (bases[1]) runners.push({ runner: bases[1], from: 1,        dest: 'score' });
+    if (bases[0]) runners.push({ runner: bases[0], from: 0,        dest: 2       });
+                  runners.push({ runner: batter,   from: 'batter', dest: 1       });
+  } else if (hitType === 'triple') {
+    if (bases[2]) runners.push({ runner: bases[2], from: 2,        dest: 'score' });
+    if (bases[1]) runners.push({ runner: bases[1], from: 1,        dest: 'score' });
+    if (bases[0]) runners.push({ runner: bases[0], from: 0,        dest: 'score' });
+                  runners.push({ runner: batter,   from: 'batter', dest: 2       });
+  }
+  return runners;
+}
+
 export default function Scorebook({ gameData, gameState, setGameState, onPinchHit, onPitcherChange, onLineupReorder }) {
   const { homeTeam, awayTeam, homeLineup, awayLineup, homeRoster, awayRoster } = gameData;
   const [activePHSlot,    setActivePHSlot]    = useState(null);
@@ -219,6 +241,8 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
   const [showPitchSeq,      setShowPitchSeq]      = useState(true);  // BK-39: show/hide PA pitch sequences
   const [bipFCRetiredBase, setBipFCRetiredBase] = useState(null); // 0|1|2 — which base runner was retired on FC
   const [bipFCIsDP,        setBipFCIsDP]        = useState(false); // true = FC was a double play
+  const [bipAdjustRunners,     setBipAdjustRunners]     = useState([]); // BK-54: [{runner, from, dest}] for runner-adjust step
+  const [bipPendingNotationStr, setBipPendingNotationStr] = useState(null); // notation string saved while in runner-adjust
   const [lineScoreOpen,     setLineScoreOpen]     = useState(true);  // collapsible line score
   const [scoreOverrideOpen, setScoreOverrideOpen] = useState(false); // collapsed by default
   const [moundExpanded, setMoundExpanded] = useState(true); // collapsible pitcher box
@@ -522,22 +546,41 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             break;
 
           case 'single':
-            // Runners: 3B scores, 2B → 3B, 1B → 2B, batter → 1B
-            if (newBases[2]) scoreRun(side, newBases[2].earned !== false);
-            newBases = [runner, newBases[0], newBases[1]];
+            // BK-54: use runnerOverride if scorer manually adjusted advancement
+            if (detail?.runnerOverride) {
+              const { newBases: nb, scored } = detail.runnerOverride;
+              scored.forEach(r => scoreRun(side, r.earned !== false));
+              newBases = [...nb];
+            } else {
+              // Default: 3B scores, 2B → 3B, 1B → 2B, batter → 1B
+              if (newBases[2]) scoreRun(side, newBases[2].earned !== false);
+              newBases = [runner, newBases[0], newBases[1]];
+            }
             break;
 
           case 'double':
-            if (newBases[2]) scoreRun(side, newBases[2].earned !== false); // 3B scores
-            if (newBases[1]) scoreRun(side, newBases[1].earned !== false); // 2B scores
-            newBases = [null, runner, newBases[0]]; // 1B → 3B, batter → 2B
+            if (detail?.runnerOverride) {
+              const { newBases: nb, scored } = detail.runnerOverride;
+              scored.forEach(r => scoreRun(side, r.earned !== false));
+              newBases = [...nb];
+            } else {
+              if (newBases[2]) scoreRun(side, newBases[2].earned !== false); // 3B scores
+              if (newBases[1]) scoreRun(side, newBases[1].earned !== false); // 2B scores
+              newBases = [null, runner, newBases[0]]; // 1B → 3B, batter → 2B
+            }
             break;
 
           case 'triple':
-            if (newBases[2]) scoreRun(side, newBases[2].earned !== false);
-            if (newBases[1]) scoreRun(side, newBases[1].earned !== false);
-            if (newBases[0]) scoreRun(side, newBases[0].earned !== false);
-            newBases = [null, null, runner]; // batter → 3B
+            if (detail?.runnerOverride) {
+              const { newBases: nb, scored } = detail.runnerOverride;
+              scored.forEach(r => scoreRun(side, r.earned !== false));
+              newBases = [...nb];
+            } else {
+              if (newBases[2]) scoreRun(side, newBases[2].earned !== false);
+              if (newBases[1]) scoreRun(side, newBases[1].earned !== false);
+              if (newBases[0]) scoreRun(side, newBases[0].earned !== false);
+              newBases = [null, null, runner]; // batter → 3B
+            }
             break;
 
           case 'hr':
@@ -693,6 +736,8 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
     setBipPendingOutcome(null);
     setBipFCRetiredBase(null);
     setBipFCIsDP(false);
+    setBipAdjustRunners([]);
+    setBipPendingNotationStr(null);
   }, []);
 
   const selectBIPContact = useCallback((type) => {
@@ -755,10 +800,23 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
   }, [goToNotation]);
 
   // BK-33: confirm notation and apply outcome
+  // BK-54: for hits, route through runner-adjust step first
   const confirmNotation = useCallback(() => {
     const notation = bipNotation.length > 0 ? bipNotation.join('-') : null;
     appendPitch(selectedPitchType, 'P'); setSelectedPitchType(null);
     pushHistory(); countPitch();
+
+    if (['single', 'double', 'triple'].includes(bipPendingOutcome)) {
+      const batter = currentBatter
+        ? { id: currentBatter.id, name: currentBatter.name, jerseyNumber: currentBatter.jerseyNumber, earned: true }
+        : { id: null, name: '?', earned: true };
+      setBipAdjustRunners(computeDefaultAdvancement(bipPendingOutcome, bases, batter));
+      setBipPendingNotationStr(notation);
+      setBipStep('runner-adjust');
+      setMenuFocusIdx(0);
+      return;
+    }
+
     applyOutcome(bipPendingOutcome, false, {
       battedBallType:   bipContact?.toUpperCase(),
       fieldingNotation: notation,
@@ -766,7 +824,24 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
     });
     cancelBIP();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bipNotation, bipPendingOutcome, bipContact, bipFCRetiredBase, bipFCIsDP, cancelBIP, applyOutcome, appendPitch, selectedPitchType]);
+  }, [bipNotation, bipPendingOutcome, bipContact, bipFCRetiredBase, bipFCIsDP, cancelBIP, applyOutcome, appendPitch, selectedPitchType, bases, currentBatter]);
+
+  // BK-54: apply runner advancement after scorer has optionally overridden positions
+  const confirmRunnerAdjust = useCallback(() => {
+    const newBases  = [null, null, null];
+    const scored    = [];
+    for (const { runner, dest } of bipAdjustRunners) {
+      if (dest === 'score') scored.push(runner);
+      else if (typeof dest === 'number' && dest >= 0 && dest <= 2) newBases[dest] = runner;
+    }
+    applyOutcome(bipPendingOutcome, false, {
+      battedBallType:   bipContact?.toUpperCase(),
+      fieldingNotation: bipPendingNotationStr,
+      runnerOverride:   { newBases, scored },
+    });
+    cancelBIP();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bipAdjustRunners, bipPendingOutcome, bipContact, bipPendingNotationStr, applyOutcome, cancelBIP]);
 
   // ── BK-31: Delete a play-by-play entry ─────────────────────────────────────
   // Removes the PA from paLog, subtracts its runs from score/inningScores,
@@ -1014,6 +1089,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
     selectedPitchType, setSelectedPitchType,
     displayArsenal,
     bipNotation, setBipNotation, confirmNotation,
+    bipAdjustRunners, setBipAdjustRunners, confirmRunnerAdjust,
     bases,
   };
   useEffect(() => {
@@ -1037,6 +1113,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           else { r.setBipStep('outcome'); }
           return;
         }
+        if (bipStep === 'runner-adjust') { e.preventDefault(); r.setBipStep('notation'); return; }
         if (bipStep === 'flag')    { e.preventDefault(); r.setBipStep('outcome'); return; }
         if (bipStep === 'fc-dp')     { e.preventDefault(); r.setBipStep('fc-runner'); return; }
         if (bipStep === 'fc-runner') { e.preventDefault(); r.setBipStep('outcome');   return; }
@@ -1054,6 +1131,9 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
       // Enter in notation step: confirm
       if (e.key === 'Enter' && r.bipStep === 'notation') {
         e.preventDefault(); r.confirmNotation(); return;
+      }
+      if (e.key === 'Enter' && r.bipStep === 'runner-adjust') {
+        e.preventDefault(); r.confirmRunnerAdjust(); return;
       }
       // Arrow + Enter: navigate items in active menus
       const menuActive = r.pitchMenuOpen || (r.bipStep !== null && r.bipStep !== 'notation');
@@ -1589,6 +1669,48 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
               </div>
             );
           })()}
+
+          {/* ── Layer BK-54: Runner advancement override ──────────────────────── */}
+          {bipStep === 'runner-adjust' && (
+            <div className="bip-layer">
+              <button className="bip-back-btn" onClick={() => setBipStep('notation')}>← Back <kbd className="pitch-pad-kbd">⌫</kbd></button>
+              <div className="runner-adjust-title">Runner Advancement</div>
+              <div className="runner-adjust-grid">
+                {bipAdjustRunners.map(({ runner, from, dest }, i) => (
+                  <div key={i} className="runner-adjust-row">
+                    <span className="runner-adjust-name">
+                      {runner.name || '?'}
+                      <span className="runner-adjust-from">
+                        {from === 'batter' ? ' (batter)' : ` (${['1B','2B','3B'][from]})`}
+                      </span>
+                    </span>
+                    <div className="runner-adjust-btns">
+                      {[['1B', 0], ['2B', 1], ['3B', 2], ['Score', 'score']].map(([label, destVal]) => (
+                        <button
+                          key={label}
+                          type="button"
+                          className={`runner-dest-btn${dest === destVal ? ' active' : ''}`}
+                          onClick={() => setBipAdjustRunners(prev =>
+                            prev.map((r, j) => j === i ? { ...r, dest: destVal } : r)
+                          )}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                style={{ marginTop: 12, alignSelf: 'center' }}
+                onClick={confirmRunnerAdjust}
+              >
+                Confirm ✓ <kbd className="pitch-pad-kbd">↵</kbd>
+              </button>
+            </div>
+          )}
 
           {/* ── Layer 5: BK-33 Fielding notation ──────────────────────── */}
           {bipStep === 'notation' && (
