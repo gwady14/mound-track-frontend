@@ -261,8 +261,8 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
     const newLineup = [...curLineup];
     const [moved]   = newLineup.splice(dragIdx, 1);
     newLineup.splice(dropIdx, 0, moved);
-    // Slot position stays at-bat — do not recalculate batter index after reorder
-    if (onLineupReorder) onLineupReorder(side, newLineup);
+    // BK-59: pass old lineup so App can recalculate batter index after reorder
+    if (onLineupReorder) onLineupReorder(side, newLineup, curLineup);
     setDragIdx(null); setDragOverIdx(null);
   };
 

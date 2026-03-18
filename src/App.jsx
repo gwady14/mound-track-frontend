@@ -297,11 +297,23 @@ export default function App() {
   }, []);
 
   // ── BK-27: Handle lineup reorder via drag-and-drop ───────────────────────
-  const handleLineupReorder = useCallback((side, newLineup) => {
+  // BK-59: oldLineup is the pre-reorder array so we can keep the at-bat pointer
+  //        on the same player even if their slot index changed.
+  const handleLineupReorder = useCallback((side, newLineup, oldLineup) => {
     setGameData(prev => {
       if (!prev) return prev;
       return { ...prev, [side === 'away' ? 'awayLineup' : 'homeLineup']: newLineup };
     });
+    if (oldLineup) {
+      setGameState(prev => {
+        if (!prev) return prev;
+        const idxKey = side === 'away' ? 'awayBatterIdx' : 'homeBatterIdx';
+        const currentBatter = oldLineup[prev[idxKey] % Math.max(oldLineup.length, 1)];
+        if (!currentBatter) return prev;
+        const newIdx = newLineup.findIndex(p => p && p.id === currentBatter.id);
+        return newIdx === -1 ? prev : { ...prev, [idxKey]: newIdx };
+      });
+    }
   }, []);
 
   // ── Handle pinch hit / position player substitution ──────────────────────
