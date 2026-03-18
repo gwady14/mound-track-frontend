@@ -101,6 +101,101 @@ function computeBattingTotals(lines) {
   }), { ab:0, r:0, h:0, d:0, t:0, hr:0, rbi:0, bb:0, hbp:0, k:0, sf:0, sh:0, sb:0, cs:0 });
 }
 
+// ── BK-65: W/L/S/H decision computation ─────────────────────────────────────
+
+function computeDecisions(paLog, score) {
+  const { away: finalAway, home: finalHome } = score || {};
+  if (!finalAway && !finalHome) return {};
+  if (finalAway === finalHome) return {}; // tie — no decisions
+
+  const winSide  = finalAway > finalHome ? 'away' : 'home';
+  const loseSide = winSide === 'away' ? 'home' : 'away';
+
+  // Cumulative score after each PA
+  let aw = 0, hm = 0;
+  const cumScore = paLog.map(pa => {
+    if (pa.side === 'away') aw += (pa.runs || 0);
+    else                    hm += (pa.runs || 0);
+    return { aw, hm };
+  });
+
+  const lead = (s) => (winSide === 'away' ? s.aw : s.hm) - (winSide === 'away' ? s.hm : s.aw);
+
+  // Find last index where loser was tied or leading
+  let lastLoserNotBehind = -1;
+  for (let i = 0; i < paLog.length; i++) {
+    if (lead(cumScore[i]) <= 0) lastLoserNotBehind = i;
+  }
+
+  // First winner-batting PA after that point that scores a run = go-ahead PA
+  let goAheadIdx = -1;
+  for (let i = lastLoserNotBehind + 1; i < paLog.length; i++) {
+    if (paLog[i].side === winSide && (paLog[i].runs || 0) > 0) { goAheadIdx = i; break; }
+  }
+  if (goAheadIdx === -1) return {};
+
+  const decisions = {};
+
+  // Loss: the losing team's pitcher who allowed the go-ahead run
+  const lossPA = paLog[goAheadIdx];
+  if (lossPA?.pitcherId) decisions[lossPA.pitcherId] = { name: lossPA.pitcherName, dec: 'L' };
+
+  // Win: first winning-team pitcher PA after the go-ahead run
+  // Winning-team pitchers appear where pa.side === loseSide
+  let winPA = null;
+  for (let i = goAheadIdx + 1; i < paLog.length; i++) {
+    if (paLog[i].side === loseSide && paLog[i].pitcherId) { winPA = paLog[i]; break; }
+  }
+  // Walk-off: no subsequent inning for winning team → use last winning-team pitcher before go-ahead
+  if (!winPA) {
+    for (let i = goAheadIdx - 1; i >= 0; i--) {
+      if (paLog[i].side === loseSide && paLog[i].pitcherId) { winPA = paLog[i]; break; }
+    }
+  }
+  if (winPA?.pitcherId && !decisions[winPA.pitcherId]) {
+    decisions[winPA.pitcherId] = { name: winPA.pitcherName, dec: 'W' };
+  }
+
+  // Build ordered list of winning-team pitchers with their first PA index
+  const seenWP = new Set();
+  const winPitchers = [];
+  for (let i = 0; i < paLog.length; i++) {
+    const pa = paLog[i];
+    if (pa.side === loseSide && pa.pitcherId && !seenWP.has(pa.pitcherId)) {
+      seenWP.add(pa.pitcherId);
+      winPitchers.push({ id: pa.pitcherId, name: pa.pitcherName, firstIdx: i });
+    }
+  }
+
+  const entryLead = (firstIdx) => {
+    const s = firstIdx > 0 ? cumScore[firstIdx - 1] : { aw: 0, hm: 0 };
+    return lead(s);
+  };
+
+  // Save: last winning-team pitcher, not already W, entered with lead ≤ 3
+  const lastWP = winPitchers[winPitchers.length - 1];
+  if (lastWP && !decisions[lastWP.id]) {
+    const el = entryLead(lastWP.firstIdx);
+    if (el > 0 && el <= 3) decisions[lastWP.id] = { name: lastWP.name, dec: 'S' };
+  }
+
+  // Hold: non-last winning-team pitchers who entered in a save situation and held the lead
+  for (let i = 0; i < winPitchers.length - 1; i++) {
+    const p = winPitchers[i];
+    if (decisions[p.id]) continue;
+    const el = entryLead(p.firstIdx);
+    if (el <= 0 || el > 3) continue;
+    const nextFirstIdx = winPitchers[i + 1]?.firstIdx ?? paLog.length;
+    let blownSave = false;
+    for (let j = p.firstIdx; j < nextFirstIdx; j++) {
+      if (paLog[j].side === loseSide && lead(cumScore[j]) <= 0) { blownSave = true; break; }
+    }
+    if (!blownSave) decisions[p.id] = { name: p.name, dec: 'H' };
+  }
+
+  return decisions;
+}
+
 // ── Pitching stat derivation ────────────────────────────────────────────────
 
 // Runner-out event types that credit an out to the active pitcher
@@ -323,7 +418,7 @@ function BattingTable({ lines, teamAbbr }) {
   );
 }
 
-function PitchingTable({ lines, teamAbbr }) {
+function PitchingTable({ lines, teamAbbr, decisions = {} }) {
   return (
     <div className="bs-section">
       <h3 className="bs-section-title">{teamAbbr} Pitching</h3>
@@ -338,23 +433,27 @@ function PitchingTable({ lines, teamAbbr }) {
           {lines.length === 0 ? (
             <tr><td colSpan={10} className="bs-empty">No pitching data yet.</td></tr>
           ) : (
-            lines.map((p, i) => (
-              <tr key={p.id || i}>
-                <td className="bs-name-col">
-                  {p.name}
-                  <span className="bs-pitcher-role">{i === 0 ? ' (S)' : ' (R)'}</span>
-                </td>
-                <td>{p.ip}</td>
-                <td>{p.h}</td>
-                <td>{p.r}</td>
-                <td>{p.er}</td>
-                <td>{p.bb || '—'}</td>
-                <td>{p.hbp || '—'}</td>
-                <td>{p.k || '—'}</td>
-                <td>{p.hr || '—'}</td>
-                <td>{p.pc || '—'}</td>
-              </tr>
-            ))
+            lines.map((p, i) => {
+              const dec = decisions[p.id]?.dec;
+              return (
+                <tr key={p.id || i}>
+                  <td className="bs-name-col">
+                    {p.name}
+                    <span className="bs-pitcher-role">{i === 0 ? ' (S)' : ' (R)'}</span>
+                    {dec && <span className={`bs-decision bs-decision-${dec.toLowerCase()}`}>{dec}</span>}
+                  </td>
+                  <td>{p.ip}</td>
+                  <td>{p.h}</td>
+                  <td>{p.r}</td>
+                  <td>{p.er}</td>
+                  <td>{p.bb || '—'}</td>
+                  <td>{p.hbp || '—'}</td>
+                  <td>{p.k || '—'}</td>
+                  <td>{p.hr || '—'}</td>
+                  <td>{p.pc || '—'}</td>
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>
@@ -387,6 +486,9 @@ export default function BoxScore({ gameData, gameState }) {
   const awayPitching = buildPitchingLines(log, 'away', { awayPitchCount }, runners);
   const homePitching = buildPitchingLines(log, 'home', { homePitchCount }, runners);
 
+  // BK-65: W/L/S/H decisions
+  const decisions = computeDecisions(log, score);
+
   const hasData = log.length > 0;
 
   return (
@@ -405,8 +507,8 @@ export default function BoxScore({ gameData, gameState }) {
         <>
           <BattingTable lines={awayBatting} teamAbbr={awayTeam?.abbreviation || 'AWY'} />
           <BattingTable lines={homeBatting} teamAbbr={homeTeam?.abbreviation || 'HME'} />
-          <PitchingTable lines={awayPitching} teamAbbr={awayTeam?.abbreviation || 'AWY'} />
-          <PitchingTable lines={homePitching} teamAbbr={homeTeam?.abbreviation || 'HME'} />
+          <PitchingTable lines={awayPitching} teamAbbr={awayTeam?.abbreviation || 'AWY'} decisions={decisions} />
+          <PitchingTable lines={homePitching} teamAbbr={homeTeam?.abbreviation || 'HME'} decisions={decisions} />
         </>
       )}
     </div>

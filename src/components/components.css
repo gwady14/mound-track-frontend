@@ -895,6 +895,11 @@
   align-items: flex-start;
   flex-wrap: wrap;
 }
+.scorebook-pbp-row {
+  align-self: flex-start;
+  min-width: 280px;
+  max-width: 480px;
+}
 
 /* Diamond card */
 .diamond-card {
@@ -1021,7 +1026,8 @@
 
 .pitch-undo-row {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  gap: 6px;
   margin-top: 6px;
 }
 .undo-btn {
@@ -1452,40 +1458,32 @@
   font-weight: 700;
 }
 
-/* BK-54: runner advancement override layer */
-.runner-adjust-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-}
-.runner-adjust-grid {
+/* ── BK-68: Tag-up advancement overlay ──────────────────────────────────── */
+.tagup-grid {
   display: flex;
   flex-direction: column;
   gap: 6px;
   width: 100%;
 }
-.runner-adjust-row {
+.tagup-row {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
-.runner-adjust-name {
+.tagup-name {
   min-width: 110px;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
 }
-.runner-adjust-from {
+.tagup-from {
   font-size: 11px;
   color: var(--text-muted);
   font-weight: 400;
 }
-.runner-adjust-btns {
+.tagup-btns {
   display: flex;
   gap: 4px;
 }
@@ -2133,8 +2131,19 @@
   text-decoration: line-through;
   text-decoration-color: var(--text-dim);
 }
-.subs-arrow { color: var(--accent); font-size: 12px; }
-.subs-in    { color: var(--text-primary); font-weight: 600; }
+.subs-arrow    { color: var(--accent); font-size: 12px; }
+.subs-in       { color: var(--text-primary); font-weight: 600; }
+.subs-position {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
 
 .subs-side-badge {
   font-size: 9px;
@@ -3545,6 +3554,20 @@
   font-weight: 400;
   margin-left: 4px;
 }
+.bs-decision {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  vertical-align: middle;
+  letter-spacing: 0.3px;
+}
+.bs-decision-w { background: #166534; color: #bbf7d0; }
+.bs-decision-l { background: #7f1d1d; color: #fecaca; }
+.bs-decision-s { background: #1e3a5f; color: #93c5fd; }
+.bs-decision-h { background: #3b2a14; color: #fde68a; }
 
 .bs-empty {
   text-align: center;

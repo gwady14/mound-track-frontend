@@ -491,6 +491,9 @@ function SubstitutionsLog({ subsLog }) {
             <span className="subs-out">{sub.outPlayer?.name}</span>
             <span className="subs-arrow">→</span>
             <span className="subs-in">{sub.inPlayer?.name}</span>
+            {sub.inPlayer?.position?.abbreviation && (
+              <span className="subs-position">{sub.inPlayer.position.abbreviation}</span>
+            )}
             <span className={`subs-side-badge subs-side-${sub.side}`}>{sub.side}</span>
           </div>
         ))}
