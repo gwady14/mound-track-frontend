@@ -56,6 +56,7 @@ function buildPitcherLines(paLog, pitchingTeamSide) {
       return s;
     }, 0);
     return {
+      pitcherId: pid,
       name,
       ip:  `${Math.floor(outs / 3)}.${outs % 3}`,
       h:   entries.filter(p => p.isHit).length,
@@ -65,6 +66,90 @@ function buildPitcherLines(paLog, pitchingTeamSide) {
       hr:  entries.filter(p => p.isHR).length,
     };
   });
+}
+
+// BK-65: W/L/S/H decision computation (mirrors BoxScore.jsx)
+function computeDecisions(paLog, score) {
+  const { away: finalAway, home: finalHome } = score || {};
+  if (!finalAway && !finalHome) return {};
+  if (finalAway === finalHome) return {};
+
+  const winSide  = finalAway > finalHome ? 'away' : 'home';
+  const loseSide = winSide === 'away' ? 'home' : 'away';
+
+  let aw = 0, hm = 0;
+  const cumScore = paLog.map(pa => {
+    if (pa.side === 'away') aw += (pa.runs || 0);
+    else                    hm += (pa.runs || 0);
+    return { aw, hm };
+  });
+
+  const lead = (s) => (winSide === 'away' ? s.aw : s.hm) - (winSide === 'away' ? s.hm : s.aw);
+
+  let lastLoserNotBehind = -1;
+  for (let i = 0; i < paLog.length; i++) {
+    if (lead(cumScore[i]) <= 0) lastLoserNotBehind = i;
+  }
+
+  let goAheadIdx = -1;
+  for (let i = lastLoserNotBehind + 1; i < paLog.length; i++) {
+    if (paLog[i].side === winSide && (paLog[i].runs || 0) > 0) { goAheadIdx = i; break; }
+  }
+  if (goAheadIdx === -1) return {};
+
+  const decisions = {};
+
+  const lossPA = paLog[goAheadIdx];
+  if (lossPA?.pitcherId) decisions[lossPA.pitcherId] = { name: lossPA.pitcherName, dec: 'L' };
+
+  let winPA = null;
+  for (let i = goAheadIdx + 1; i < paLog.length; i++) {
+    if (paLog[i].side === loseSide && paLog[i].pitcherId) { winPA = paLog[i]; break; }
+  }
+  if (!winPA) {
+    for (let i = goAheadIdx - 1; i >= 0; i--) {
+      if (paLog[i].side === loseSide && paLog[i].pitcherId) { winPA = paLog[i]; break; }
+    }
+  }
+  if (winPA?.pitcherId && !decisions[winPA.pitcherId]) {
+    decisions[winPA.pitcherId] = { name: winPA.pitcherName, dec: 'W' };
+  }
+
+  const seenWP = new Set();
+  const winPitchers = [];
+  for (let i = 0; i < paLog.length; i++) {
+    const pa = paLog[i];
+    if (pa.side === loseSide && pa.pitcherId && !seenWP.has(pa.pitcherId)) {
+      seenWP.add(pa.pitcherId);
+      winPitchers.push({ id: pa.pitcherId, name: pa.pitcherName, firstIdx: i });
+    }
+  }
+
+  const entryLead = (firstIdx) => {
+    const s = firstIdx > 0 ? cumScore[firstIdx - 1] : { aw: 0, hm: 0 };
+    return lead(s);
+  };
+
+  const lastWP = winPitchers[winPitchers.length - 1];
+  if (lastWP && !decisions[lastWP.id]) {
+    const el = entryLead(lastWP.firstIdx);
+    if (el > 0 && el <= 3) decisions[lastWP.id] = { name: lastWP.name, dec: 'S' };
+  }
+
+  for (let i = 0; i < winPitchers.length - 1; i++) {
+    const p = winPitchers[i];
+    if (decisions[p.id]) continue;
+    const el = entryLead(p.firstIdx);
+    if (el <= 0 || el > 3) continue;
+    const nextFirstIdx = winPitchers[i + 1]?.firstIdx ?? paLog.length;
+    let blownSave = false;
+    for (let j = p.firstIdx; j < nextFirstIdx; j++) {
+      if (paLog[j].side === loseSide && lead(cumScore[j]) <= 0) { blownSave = true; break; }
+    }
+    if (!blownSave) decisions[p.id] = { name: p.name, dec: 'H' };
+  }
+
+  return decisions;
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────
@@ -113,7 +198,7 @@ function SummaryBatterTable({ batters }) {
   );
 }
 
-function SummaryPitcherTable({ pitchers }) {
+function SummaryPitcherTable({ pitchers, decisions = {} }) {
   if (pitchers.length === 0) {
     return <p className="gs-empty">No pitching data recorded.</p>;
   }
@@ -126,20 +211,28 @@ function SummaryPitcherTable({ pitchers }) {
         </tr>
       </thead>
       <tbody>
-        {pitchers.map((p, i) => (
-          <tr key={i}>
-            <td className="gs-name-col">
-              {p.name}
-              <span className="gs-role">{i === 0 ? ' SP' : ' RP'}</span>
-            </td>
-            <td>{p.ip}</td>
-            <td>{p.h}</td>
-            <td className={p.r > 0 ? 'gs-runs-allowed' : ''}>{p.r}</td>
-            <td className="gs-dim">{p.bb || '—'}</td>
-            <td>{p.k  || '—'}</td>
-            <td className={p.hr > 0 ? 'gs-hr' : 'gs-dim'}>{p.hr || '—'}</td>
-          </tr>
-        ))}
+        {pitchers.map((p, i) => {
+          const dec = decisions[p.pitcherId];
+          return (
+            <tr key={i}>
+              <td className="gs-name-col">
+                {p.name}
+                <span className="gs-role">{i === 0 ? ' SP' : ' RP'}</span>
+                {dec && (
+                  <span className={`bs-decision bs-decision-${dec.dec.toLowerCase()}`}>
+                    {dec.dec}
+                  </span>
+                )}
+              </td>
+              <td>{p.ip}</td>
+              <td>{p.h}</td>
+              <td className={p.r > 0 ? 'gs-runs-allowed' : ''}>{p.r}</td>
+              <td className="gs-dim">{p.bb || '—'}</td>
+              <td>{p.k  || '—'}</td>
+              <td className={p.hr > 0 ? 'gs-hr' : 'gs-dim'}>{p.hr || '—'}</td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
@@ -182,6 +275,7 @@ export default function GameSummary({ gameData, gameState, onBack, onNewGame }) 
   const homeBatters      = buildBatterLines(log, 'home');
   const homePitcherLines = buildPitcherLines(log, 'home');
   const awayPitcherLines = buildPitcherLines(log, 'away');
+  const decisions        = computeDecisions(log, score);
 
   const allPlayers = [...(awayLineup || []), ...(homeLineup || [])].filter(Boolean);
 
@@ -333,11 +427,11 @@ export default function GameSummary({ gameData, gameState, onBack, onNewGame }) 
         <div className="gs-two-col">
           <div className="card gs-section">
             <div className="gs-section-title">PITCHING — {awayTeam?.abbreviation}</div>
-            <SummaryPitcherTable pitchers={awayPitcherLines} />
+            <SummaryPitcherTable pitchers={awayPitcherLines} decisions={decisions} />
           </div>
           <div className="card gs-section">
             <div className="gs-section-title">PITCHING — {homeTeam?.abbreviation}</div>
-            <SummaryPitcherTable pitchers={homePitcherLines} />
+            <SummaryPitcherTable pitchers={homePitcherLines} decisions={decisions} />
           </div>
         </div>
 
