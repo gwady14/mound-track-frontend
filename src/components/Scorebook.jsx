@@ -958,10 +958,11 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
     if (!baseActionMenu) return;
     const { baseIdx } = baseActionMenu;
 
-    if (action === 'cancel')  { setBaseActionMenu(null); return; }
-    if (action === 'advance') { setBaseActionMenu({ baseIdx, step: 'advance-reason' }); return; }
-    if (action === 'out')     { setBaseActionMenu({ baseIdx, step: 'out-reason' }); return; }
-    if (action === 'back')    { setBaseActionMenu({ baseIdx, step: 'main' }); return; }
+    if (action === 'cancel')        { setBaseActionMenu(null); return; }
+    if (action === 'advance')       { setBaseActionMenu({ baseIdx, step: 'advance-reason' }); return; }
+    if (action === 'out')           { setBaseActionMenu({ baseIdx, step: 'out-reason' }); return; }
+    if (action === 'pinch-runner')  { setBaseActionMenu({ baseIdx, step: 'pinch-runner' }); return; }
+    if (action === 'back')          { setBaseActionMenu({ baseIdx, step: 'main' }); return; }
 
     // 'do-advance' (with reason), 'do-out' (with reason), 'score'
     setBaseActionMenu(null);
@@ -1070,6 +1071,26 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
 
       return { ...prev, bases: newBases, outs: newOuts, isTop: newIsTop, inning: newInning, score: newScore, inningScores: newInningScores, runnerEvents: newRunnerEvents, gameEventSeq: newGameEventSeq, balls: newOuts === 0 ? 0 : prev.balls, strikes: newOuts === 0 ? 0 : prev.strikes };
     });
+  };
+
+  // BK-61: swap a runner on base with a pinch runner
+  const handlePinchRunner = (newPlayer) => {
+    if (!baseActionMenu) return;
+    const { baseIdx } = baseActionMenu;
+    const runner = bases[baseIdx];
+    if (!runner || !newPlayer) return;
+    pushHistory();
+    setGameState(prev => {
+      const newBases = [...prev.bases];
+      newBases[baseIdx] = { ...newBases[baseIdx], id: newPlayer.id, name: newPlayer.name, jerseyNumber: newPlayer.jerseyNumber };
+      return { ...prev, bases: newBases };
+    });
+    // Log substitution — find the runner's lineup slot in the batting lineup
+    const side = isTop ? 'away' : 'home';
+    const lineup = isTop ? awayLineup : homeLineup;
+    const slot = lineup.findIndex(p => p.id === runner.id);
+    if (slot !== -1 && onPinchHit) onPinchHit(side, slot, newPlayer);
+    setBaseActionMenu(null);
   };
 
   const endHalfInning = () => {
@@ -1436,6 +1457,59 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
               ];
               const pos = menuPositions[baseIdx];
 
+              if (step === 'pinch-runner') {
+                const runner = bases[baseIdx];
+                const prSide = isTop ? 'away' : 'home';
+                const fullRosterPR = (isTop ? awayRoster : homeRoster) || [];
+                const isPitcherPR = p => p.position?.type === 'Pitcher' || p.position?.code === '1' || p.position?.abbreviation === 'P';
+                const benchRosterPR = fullRosterPR.filter(p => !currentLineup.some(b => b?.id === p.id));
+                const playedIdsPR = new Set((gameData.subsLog || []).filter(s => s.side === prSide).map(s => s.outPlayer?.id).filter(Boolean));
+                const availPR = benchRosterPR.filter(p => !playedIdsPR.has(p.id));
+                const prFielders = availPR.filter(p => !isPitcherPR(p));
+                const prPitchers = availPR.filter(p =>  isPitcherPR(p));
+                return (
+                  <div className="base-action-menu" style={{ top: pos.top, left: pos.left, minWidth: 170 }}>
+                    <span className="base-action-label">↳ PR for {runnerLabel(runner)}</span>
+                    {availPR.length === 0 ? (
+                      <span className="base-action-label">No bench available</span>
+                    ) : (
+                      <select
+                        autoFocus
+                        defaultValue=""
+                        className="pr-select"
+                        onChange={e => {
+                          const p = availPR.find(x => x.id === e.target.value);
+                          if (p) handlePinchRunner(p);
+                        }}
+                      >
+                        <option value="" disabled>Pick player…</option>
+                        {prFielders.length > 0 && (
+                          <optgroup label="Position Players">
+                            {prFielders.map(p => (
+                              <option key={p.id} value={p.id}>
+                                {p.jerseyNumber ? `#${p.jerseyNumber} ` : ''}{p.name}{p.position?.abbreviation ? ` · ${p.position.abbreviation}` : ''}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {prPitchers.length > 0 && (
+                          <optgroup label="Pitchers">
+                            {prPitchers.map(p => (
+                              <option key={p.id} value={p.id}>
+                                {p.jerseyNumber ? `#${p.jerseyNumber} ` : ''}{p.name}{p.position?.abbreviation ? ` · ${p.position.abbreviation}` : ''}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    )}
+                    <button className="base-action-btn base-action-cancel" onClick={() => handleBaseAction('back')}>
+                      ← Back
+                    </button>
+                  </div>
+                );
+              }
+
               if (step === 'advance-reason') {
                 return (
                   <div className="base-action-menu" style={{ top: pos.top, left: pos.left }}>
@@ -1491,6 +1565,9 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                   </button>
                   <button className="base-action-btn base-action-out" onClick={() => handleBaseAction('out')}>
                     Out
+                  </button>
+                  <button className="base-action-btn base-action-pr" onClick={() => handleBaseAction('pinch-runner')}>
+                    Pinch Runner
                   </button>
                   <button className="base-action-btn base-action-cancel" onClick={() => handleBaseAction('cancel')}>
                     ✕
