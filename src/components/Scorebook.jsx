@@ -2053,8 +2053,13 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
               p.position?.code === '1' ||
               p.position?.abbreviation === 'P';
             const pitchingRoster   = (isTop ? homeRoster : awayRoster) || [];
+            const usedPitcherIds   = new Set(
+              (gameData.subsLog || [])
+                .filter(s => s.side === pitchingSide && s.outPlayer)
+                .map(s => s.outPlayer.id)
+            );
             const availablePitchers = pitchingRoster.filter(
-              p => isPitcherPos(p) && p.id !== oppPitcher.id
+              p => isPitcherPos(p) && p.id !== oppPitcher.id && !usedPitcherIds.has(p.id)
             );
             const pitcherOptFmt = p =>
               `${p.jerseyNumber ? `#${p.jerseyNumber} ` : ''}${p.name}${p.position?.abbreviation ? ` · ${p.position.abbreviation}` : ''}${p.throwHand ? ` · ${p.throwHand}HP` : ''}`;
