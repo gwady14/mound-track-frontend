@@ -1356,6 +1356,10 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
       {/* ── Live Game State ──────────────────────────────────────────────── */}
       <div className="scorebook-controls-row">
 
+        {/* Left column: control cards + PBP below */}
+        <div className="scorebook-left-col">
+        <div className="scorebook-top-row">
+
         {/* Diamond + Count */}
         <div className="card diamond-card">
           <div className="inning-display">
@@ -1889,6 +1893,24 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           </div>
         )}
 
+        </div>{/* end scorebook-top-row */}
+
+        {/* PBP — fills space below control cards, ends at bottom of batter card */}
+        <div className="scorebook-pbp-col">
+          <PlayByPlayLog
+            paLog={paLog || []}
+            runnerEvents={gameState.runnerEvents || []}
+            awayTeam={awayTeam}
+            homeTeam={homeTeam}
+            filterBatterId={highlightedBatter?.id || null}
+            filterBatterName={highlightedBatter?.name || null}
+            onDeletePA={deletePA}
+            onDeleteRunner={deleteRunnerEvent}
+          />
+        </div>
+
+        </div>{/* end scorebook-left-col */}
+
         {/* Current Batter + Lineup */}
         <div className="card batter-card">
           {/* ── Opposing pitcher strip ───────────────────────────────────── */}
@@ -2416,18 +2438,6 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
         </div>
 
       </div>
-
-      {/* ── Play-by-play log — full width below controls ───────────────── */}
-      <PlayByPlayLog
-        paLog={paLog || []}
-        runnerEvents={gameState.runnerEvents || []}
-        awayTeam={awayTeam}
-        homeTeam={homeTeam}
-        filterBatterId={highlightedBatter?.id || null}
-        filterBatterName={highlightedBatter?.name || null}
-        onDeletePA={deletePA}
-        onDeleteRunner={deleteRunnerEvent}
-      />
 
     </div>
   );
