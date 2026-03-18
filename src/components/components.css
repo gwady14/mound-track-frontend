@@ -919,7 +919,7 @@
 }
 .scorebook-pbp-col .pbp-scroll {
   flex: 1;
-  max-height: none;
+  max-height: 360px; /* ~15 rows */
 }
 
 /* Diamond card */
