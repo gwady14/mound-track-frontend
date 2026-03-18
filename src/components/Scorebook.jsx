@@ -2414,20 +2414,21 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             )}
           </div>
         </div>
-      </div>
 
-      {/* ── Play-by-play log — bottom-left ─────────────────────────────── */}
-      <div className="scorebook-pbp-row">
-        <PlayByPlayLog
-          paLog={paLog || []}
-          runnerEvents={gameState.runnerEvents || []}
-          awayTeam={awayTeam}
-          homeTeam={homeTeam}
-          filterBatterId={highlightedBatter?.id || null}
-          filterBatterName={highlightedBatter?.name || null}
-          onDeletePA={deletePA}
-          onDeleteRunner={deleteRunnerEvent}
-        />
+        {/* ── Play-by-play log — inline, fills gap between controls and lineup */}
+        <div className="scorebook-pbp-col">
+          <PlayByPlayLog
+            paLog={paLog || []}
+            runnerEvents={gameState.runnerEvents || []}
+            awayTeam={awayTeam}
+            homeTeam={homeTeam}
+            filterBatterId={highlightedBatter?.id || null}
+            filterBatterName={highlightedBatter?.name || null}
+            onDeletePA={deletePA}
+            onDeleteRunner={deleteRunnerEvent}
+          />
+        </div>
+
       </div>
     </div>
   );

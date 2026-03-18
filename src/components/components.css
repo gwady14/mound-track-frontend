@@ -895,10 +895,24 @@
   align-items: flex-start;
   flex-wrap: wrap;
 }
-.scorebook-pbp-row {
-  align-self: flex-start;
-  min-width: 280px;
-  max-width: 480px;
+.scorebook-pbp-col {
+  flex: 0 0 300px;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+  max-width: 340px;
+}
+.scorebook-pbp-col .pbp-log {
+  flex: 1;
+  margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.scorebook-pbp-col .pbp-scroll {
+  flex: 1;
+  max-height: none;
 }
 
 /* Diamond card */
