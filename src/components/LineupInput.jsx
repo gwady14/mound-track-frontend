@@ -32,6 +32,7 @@ export default function LineupInput({ onSubmit }) {
   const [awayPitcher, setAwayPitcher] = useState(null);
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [loadingRoster, setLoadingRoster] = useState({ home: false, away: false });
+  const [positionWarning, setPositionWarning] = useState('');
 
   // ── Fetch team list on mount ──────────────────────────────────────────────
   useEffect(() => {
@@ -123,6 +124,42 @@ export default function LineupInput({ onSubmit }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!canSubmit) return;
+
+    // Warn if any filled lineup slot is missing a position
+    const missingHome = homeLineup.filter((p, i) => p && !homePositions[i]).length;
+    const missingAway = awayLineup.filter((p, i) => p && !awayPositions[i]).length;
+    if (missingHome > 0 || missingAway > 0) {
+      const parts = [];
+      if (missingAway > 0) parts.push(`${missingAway} away player${missingAway > 1 ? 's' : ''}`);
+      if (missingHome > 0) parts.push(`${missingHome} home player${missingHome > 1 ? 's' : ''}`);
+      setPositionWarning(`Missing fielding position for ${parts.join(' and ')}. Assign positions or continue anyway.`);
+      return;
+    }
+    setPositionWarning('');
+
+    const allTeams = [...teams, ...wbcTeams];
+    const homeTeamObj = allTeams.find(t => String(t.id) === String(homeTeam));
+    const awayTeamObj = allTeams.find(t => String(t.id) === String(awayTeam));
+    const mergePos = (lineup, positions) =>
+      lineup.map((p, i) => p && positions[i]
+        ? { ...p, position: { ...p.position, abbreviation: positions[i] } }
+        : p
+      ).filter(Boolean);
+    onSubmit({
+      homeTeam:    homeTeamObj,
+      awayTeam:    awayTeamObj,
+      homeLineup:  mergePos(homeLineup, homePositions),
+      awayLineup:  mergePos(awayLineup, awayPositions),
+      homePitcher,
+      awayPitcher,
+      homeRoster,
+      awayRoster,
+    });
+  };
+
+  // ── Force submit (skip position warning) ─────────────────────────────────
+  const handleForceSubmit = () => {
+    setPositionWarning('');
     const allTeams = [...teams, ...wbcTeams];
     const homeTeamObj = allTeams.find(t => String(t.id) === String(homeTeam));
     const awayTeamObj = allTeams.find(t => String(t.id) === String(awayTeam));
@@ -215,6 +252,14 @@ export default function LineupInput({ onSubmit }) {
           <span className="dim" style={{ fontSize: 12 }}>
             Select both teams, fill lineups, and choose starting pitchers
           </span>
+        )}
+        {positionWarning && (
+          <div className="lineup-position-warning">
+            <span>⚠️ {positionWarning}</span>
+            <button type="button" className="btn btn-ghost" style={{ fontSize: 13 }} onClick={handleForceSubmit}>
+              Continue anyway
+            </button>
+          </div>
         )}
       </div>
     </form>

@@ -108,12 +108,24 @@
 
 .lineup-submit-row {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 12px;
   margin-top: 28px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
+}
+.lineup-position-warning {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.4);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--warning, #eab308);
 }
 
 /* ── Matchups Panel ──────────────────────────────────────────────────────── */
