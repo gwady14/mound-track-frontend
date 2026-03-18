@@ -1889,6 +1889,20 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           </div>
         )}
 
+        {/* ── Play-by-play log — inline, fills gap between controls and lineup */}
+        <div className="scorebook-pbp-col">
+          <PlayByPlayLog
+            paLog={paLog || []}
+            runnerEvents={gameState.runnerEvents || []}
+            awayTeam={awayTeam}
+            homeTeam={homeTeam}
+            filterBatterId={highlightedBatter?.id || null}
+            filterBatterName={highlightedBatter?.name || null}
+            onDeletePA={deletePA}
+            onDeleteRunner={deleteRunnerEvent}
+          />
+        </div>
+
         {/* Current Batter + Lineup */}
         <div className="card batter-card">
           {/* ── Opposing pitcher strip ───────────────────────────────────── */}
@@ -2413,20 +2427,6 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
               </>
             )}
           </div>
-        </div>
-
-        {/* ── Play-by-play log — inline, fills gap between controls and lineup */}
-        <div className="scorebook-pbp-col">
-          <PlayByPlayLog
-            paLog={paLog || []}
-            runnerEvents={gameState.runnerEvents || []}
-            awayTeam={awayTeam}
-            homeTeam={homeTeam}
-            filterBatterId={highlightedBatter?.id || null}
-            filterBatterName={highlightedBatter?.name || null}
-            onDeletePA={deletePA}
-            onDeleteRunner={deleteRunnerEvent}
-          />
         </div>
 
       </div>
