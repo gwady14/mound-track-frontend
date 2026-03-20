@@ -20,7 +20,7 @@ import AuthPage        from './components/AuthPage.jsx';
 import GameHistory     from './components/GameHistory.jsx';
 import AdminPanel      from './components/AdminPanel.jsx';
 import { useAuth }     from './context/AuthContext.jsx';
-import { api }         from './api/index.js';
+import { api, getTeamsCached, getRosterCached, getPitcherStatsCached, getPitcherArsenalCached, getPitcherArsenalSplitsCached } from './api/index.js';
 import './App.css';
 
 // ── localStorage persistence ────────────────────────────────────────────────
@@ -88,6 +88,7 @@ export default function App() {
   const [loadError,       setLoadError]       = useState(null);
   const [gameState,       setGameState]       = useState(saved?.gameState ?? EMPTY_GAME);
   const [showSummary,     setShowSummary]     = useState(false);
+  const [offlineReady,    setOfflineReady]    = useState(false);
   const [fetchError,      setFetchError]      = useState(null); // BK-79: background fetch failure toast
   const fetchErrorTimerRef = useRef(null);
 
@@ -189,6 +190,7 @@ export default function App() {
       // Reset game state when a new game is loaded
       setGameState(EMPTY_GAME);
       setShowSummary(false);
+      setOfflineReady(false);
       setTab('matchups');
 
       // ── Background: fetch streaks and patch into gameData ─────────────
@@ -259,6 +261,24 @@ export default function App() {
         }
         setGameData(prev => prev ? { ...prev, milestonesById } : prev);
       });
+
+      // ── BK-90: Pre-cache all roster pitchers for offline use ───────────
+      // Runs last so it doesn't compete with higher-priority foreground fetches.
+      // When done, sets offlineReady = true so the badge appears.
+      const isPitcher = p => p?.position?.type === 'Pitcher' || p?.position?.code === '1';
+      const allRosterPitchers = [
+        ...(homeRoster || []).filter(isPitcher),
+        ...(awayRoster || []).filter(isPitcher),
+      ].filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+
+      Promise.allSettled(
+        allRosterPitchers.flatMap(p => [
+          getPitcherStatsCached(p.id),
+          getPitcherArsenalCached(p.id),
+          getPitcherArsenalSplitsCached(p.id),
+        ])
+      ).then(() => setOfflineReady(true));
+
     } catch (err) {
       console.error('Lineup load error:', err);
       setLoadError(err.message);
@@ -304,18 +324,18 @@ export default function App() {
       return prev;
     });
 
-    // Background: fetch the new pitcher's season stats and pitch arsenal
-    api.getPitcherStats(pitcher.id)
+    // Background: fetch new pitcher's stats + arsenal (cached — works offline)
+    getPitcherStatsCached(pitcher.id)
       .then(s => setGameData(prev =>
         prev ? { ...prev, statsById: { ...prev.statsById, [pitcher.id]: s } } : prev))
       .catch(console.error);
 
-    api.getPitcherArsenal(pitcher.id)
+    getPitcherArsenalCached(pitcher.id)
       .then(a => setGameData(prev =>
         prev ? { ...prev, arsenalById: { ...prev.arsenalById, [pitcher.id]: a } } : prev))
       .catch(console.error);
 
-    api.getPitcherArsenalSplits(pitcher.id)
+    getPitcherArsenalSplitsCached(pitcher.id)
       .then(s => setGameData(prev =>
         prev ? { ...prev, arsenalSplitsById: { ...prev.arsenalSplitsById, [pitcher.id]: s } } : prev))
       .catch(console.error);
@@ -646,6 +666,11 @@ export default function App() {
                   {t.label}
                 </button>
               ))}
+              {offlineReady && (
+                <span className="offline-ready-badge" title="All pitcher data cached — app works without internet">
+                  ✓ Offline Ready
+                </span>
+              )}
             </nav>
 
             <div className="tab-content">

@@ -222,3 +222,47 @@ export async function getRosterCached(teamId) {
     throw new Error('No internet connection and no cached roster for this team.');
   }
 }
+
+const PITCHER_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+/** Fetch pitcher season stats; caches 24hr; falls back to cache offline. */
+export async function getPitcherStatsCached(pitcherId) {
+  const key = `cache:pitcher-stats:${pitcherId}`;
+  try {
+    const data = await get(`/stats/pitcher/${pitcherId}`);
+    cacheSet(key, data, PITCHER_TTL);
+    return data;
+  } catch {
+    const cached = cacheGet(key);
+    if (cached) return cached;
+    throw new Error('Offline and no cached pitcher stats.');
+  }
+}
+
+/** Fetch pitcher arsenal; caches 24hr; falls back to cache offline. */
+export async function getPitcherArsenalCached(pitcherId) {
+  const key = `cache:pitcher-arsenal:${pitcherId}`;
+  try {
+    const data = await get(`/stats/pitcher/${pitcherId}/arsenal`);
+    cacheSet(key, data, PITCHER_TTL);
+    return data;
+  } catch {
+    const cached = cacheGet(key);
+    if (cached) return cached;
+    throw new Error('Offline and no cached arsenal.');
+  }
+}
+
+/** Fetch pitcher arsenal splits; caches 24hr; falls back to cache offline. */
+export async function getPitcherArsenalSplitsCached(pitcherId) {
+  const key = `cache:pitcher-splits:${pitcherId}`;
+  try {
+    const data = await get(`/stats/pitcher/${pitcherId}/arsenal-splits`);
+    cacheSet(key, data, PITCHER_TTL);
+    return data;
+  } catch {
+    const cached = cacheGet(key);
+    if (cached) return cached;
+    throw new Error('Offline and no cached splits.');
+  }
+}
