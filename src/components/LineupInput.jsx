@@ -235,7 +235,7 @@ export default function LineupInput({ onSubmit }) {
         <TeamLineupCard
           label="Away"
           teams={teams}
-
+          otherTeamId={homeTeam}
           selectedTeamId={awayTeam}
           onTeamChange={(id) => setAwayTeam(id)}
           roster={awayRoster}
@@ -256,7 +256,7 @@ export default function LineupInput({ onSubmit }) {
         <TeamLineupCard
           label="Home"
           teams={teams}
-
+          otherTeamId={awayTeam}
           selectedTeamId={homeTeam}
           onTeamChange={(id) => setHomeTeam(id)}
           roster={homeRoster}
@@ -307,6 +307,7 @@ export default function LineupInput({ onSubmit }) {
 // ── Sub-component: one team's lineup entry card ───────────────────────────
 function TeamLineupCard({
   label, teams, selectedTeamId, onTeamChange,
+  otherTeamId = '',
   roster, lineup, positions, pitcher,
   onLineupChange, onPositionChange, onPitcherChange, onAutoFill,
   loading, pitchers,
@@ -336,7 +337,7 @@ function TeamLineupCard({
           <option value="">Select team…</option>
           <optgroup label="MLB">
             {teams.map(t => (
-              <option key={t.id} value={t.id}>{t.name}</option>
+              <option key={t.id} value={t.id} disabled={t.id === otherTeamId}>{t.name}</option>
             ))}
           </optgroup>
         </select>
