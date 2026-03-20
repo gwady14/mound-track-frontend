@@ -10,7 +10,7 @@
  * On submit, fires props.onSubmit({ homeTeam, awayTeam, homeLineup, awayLineup, homePitcher, awayPitcher })
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/index.js';
 
 const BATTING_POSITIONS = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
@@ -18,8 +18,6 @@ const FIELD_POSITIONS   = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH', 
 
 export default function LineupInput({ onSubmit }) {
   const [teams,       setTeams]       = useState([]);
-  const [wbcTeams,    setWbcTeams]    = useState([]);
-  const wbcTeamsRef = useRef([]);
   const [homeTeam,    setHomeTeam]    = useState('');
   const [awayTeam,    setAwayTeam]    = useState('');
   const [homeRoster,  setHomeRoster]  = useState([]);
@@ -37,14 +35,9 @@ export default function LineupInput({ onSubmit }) {
 
   // ── Fetch team list on mount ──────────────────────────────────────────────
   useEffect(() => {
-    Promise.all([
-      api.getTeams(),
-      api.getWbcTeams().catch(() => []),
-    ]).then(([mlb, wbc]) => {
-      setTeams(mlb);
-      setWbcTeams(wbc);
-      wbcTeamsRef.current = wbc;
-    }).catch(console.error)
+    api.getTeams()
+      .then(mlb => setTeams(mlb))
+      .catch(console.error)
       .finally(() => setLoadingTeams(false));
   }, []);
 
@@ -53,8 +46,7 @@ export default function LineupInput({ onSubmit }) {
     if (!teamId) return;
     setLoadingRoster(prev => ({ ...prev, [side]: true }));
     try {
-      const isWbc = wbcTeamsRef.current.some(t => String(t.id) === String(teamId));
-      const roster = await api.getRoster(teamId, isWbc ? 2026 : undefined);
+      const roster = await api.getRoster(teamId);
       if (side === 'home') {
         setHomeRoster(roster);
         setHomeLineup(Array(9).fill(null));
@@ -152,7 +144,7 @@ export default function LineupInput({ onSubmit }) {
     }
     setPositionWarning('');
 
-    const allTeams = [...teams, ...wbcTeams];
+    const allTeams = [...teams];
     const homeTeamObj = allTeams.find(t => String(t.id) === String(homeTeam));
     const awayTeamObj = allTeams.find(t => String(t.id) === String(awayTeam));
     const mergePos = (lineup, positions) =>
@@ -175,7 +167,7 @@ export default function LineupInput({ onSubmit }) {
   // ── Force submit (skip position warning) ─────────────────────────────────
   const handleForceSubmit = () => {
     setPositionWarning('');
-    const allTeams = [...teams, ...wbcTeams];
+    const allTeams = [...teams];
     const homeTeamObj = allTeams.find(t => String(t.id) === String(homeTeam));
     const awayTeamObj = allTeams.find(t => String(t.id) === String(awayTeam));
     const mergePos = (lineup, positions) =>
@@ -217,7 +209,7 @@ export default function LineupInput({ onSubmit }) {
         <TeamLineupCard
           label="Away"
           teams={teams}
-          wbcTeams={wbcTeams}
+
           selectedTeamId={awayTeam}
           onTeamChange={(id) => setAwayTeam(id)}
           roster={awayRoster}
@@ -238,7 +230,7 @@ export default function LineupInput({ onSubmit }) {
         <TeamLineupCard
           label="Home"
           teams={teams}
-          wbcTeams={wbcTeams}
+
           selectedTeamId={homeTeam}
           onTeamChange={(id) => setHomeTeam(id)}
           roster={homeRoster}
@@ -288,7 +280,7 @@ export default function LineupInput({ onSubmit }) {
 
 // ── Sub-component: one team's lineup entry card ───────────────────────────
 function TeamLineupCard({
-  label, teams, wbcTeams = [], selectedTeamId, onTeamChange,
+  label, teams, selectedTeamId, onTeamChange,
   roster, lineup, positions, pitcher,
   onLineupChange, onPositionChange, onPitcherChange, onAutoFill,
   loading, pitchers,
@@ -321,13 +313,6 @@ function TeamLineupCard({
               <option key={t.id} value={t.id}>{t.name}</option>
             ))}
           </optgroup>
-          {wbcTeams.length > 0 && (
-            <optgroup label="World Baseball Classic 2026">
-              {wbcTeams.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </optgroup>
-          )}
         </select>
       </div>
 
