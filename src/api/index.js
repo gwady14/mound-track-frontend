@@ -125,6 +125,10 @@ export const api = {
   getPitcherArsenal: (playerId, season) =>
     get(`/stats/pitcher/${playerId}/arsenal${season ? `?season=${season}` : ''}`),
 
+  /** BK-91: Pitch type frequency split by batter handedness (L/R) */
+  getPitcherArsenalSplits: (playerId, season) =>
+    get(`/stats/pitcher/${playerId}/arsenal-splits${season ? `?season=${season}` : ''}`),
+
   /**
    * Career milestone check for a player.
    * Returns milestones they are approaching (fewest remaining first).

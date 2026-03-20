@@ -178,7 +178,8 @@ export default function App() {
         statsById,
         bvpById,
         streaksById:    {},
-        arsenalById:    {},
+        arsenalById:        {},
+        arsenalSplitsById:  {},
         milestonesById: {},
         sprayById:      {},       // {[playerId]: [{x, y, o}]} — batted ball spray data
         zonesById:      {},       // {[playerId]: [{row, col, ab, hits, ba}]} — hot/cold zone grid
@@ -201,7 +202,7 @@ export default function App() {
         setGameData(prev => prev ? { ...prev, streaksById } : prev);
       });
 
-      // ── Background: fetch pitch arsenal for both starters ─────────────
+      // ── Background: fetch pitch arsenal + splits for both starters ───
       Promise.allSettled(
         allPitchers.map(p => api.getPitcherArsenal(p.id).then(a => ({ id: p.id, pitches: a })))
       ).then(results => {
@@ -210,6 +211,16 @@ export default function App() {
           if (r.status === 'fulfilled') arsenalById[r.value.id] = r.value.pitches;
         }
         setGameData(prev => prev ? { ...prev, arsenalById } : prev);
+      });
+
+      Promise.allSettled(
+        allPitchers.map(p => api.getPitcherArsenalSplits(p.id).then(s => ({ id: p.id, splits: s })))
+      ).then(results => {
+        const arsenalSplitsById = {};
+        for (const r of results) {
+          if (r.status === 'fulfilled') arsenalSplitsById[r.value.id] = r.value.splits;
+        }
+        setGameData(prev => prev ? { ...prev, arsenalSplitsById } : prev);
       });
 
       // ── Background: fetch spray chart data for every batter ───────────
@@ -302,6 +313,11 @@ export default function App() {
     api.getPitcherArsenal(pitcher.id)
       .then(a => setGameData(prev =>
         prev ? { ...prev, arsenalById: { ...prev.arsenalById, [pitcher.id]: a } } : prev))
+      .catch(console.error);
+
+    api.getPitcherArsenalSplits(pitcher.id)
+      .then(s => setGameData(prev =>
+        prev ? { ...prev, arsenalSplitsById: { ...prev.arsenalSplitsById, [pitcher.id]: s } } : prev))
       .catch(console.error);
   }, []);
 
@@ -639,6 +655,7 @@ export default function App() {
                   paLog={gameState.paLog}
                   streaksById={gameData.streaksById || {}}
                   arsenalById={gameData.arsenalById || {}}
+                  arsenalSplitsById={gameData.arsenalSplitsById || {}}
                   milestonesById={gameData.milestonesById || {}}
                   zonesById={gameData.zonesById || {}}
                   onPitcherChange={handlePitcherChange}

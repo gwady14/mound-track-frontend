@@ -314,7 +314,7 @@ function highlightCounts(mlb, fg, sc) {
   return { up, down, total: up + down };
 }
 
-export default function MatchupsPanel({ gameData, paLog, streaksById, arsenalById, milestonesById, zonesById, onPitcherChange, onPinchHit, subsLog, awayBatterIdx, homeBatterIdx, isTop }) {
+export default function MatchupsPanel({ gameData, paLog, streaksById, arsenalById, arsenalSplitsById, milestonesById, zonesById, onPitcherChange, onPinchHit, subsLog, awayBatterIdx, homeBatterIdx, isTop }) {
   const [sortAway, setSortAway] = useState({ col: null, dir: 'desc' });
   const [sortHome, setSortHome] = useState({ col: null, dir: 'desc' });
 
@@ -409,6 +409,7 @@ export default function MatchupsPanel({ gameData, paLog, streaksById, arsenalByI
           pitcher={awayPitcher}
           stats={statsById[awayPitcher?.id]}
           arsenal={(arsenalById || {})[awayPitcher?.id]}
+          arsenalSplits={(arsenalSplitsById || {})[awayPitcher?.id]}
         />
         <PitcherCapsule
           team={homeTeam}
@@ -416,6 +417,7 @@ export default function MatchupsPanel({ gameData, paLog, streaksById, arsenalByI
           pitcher={homePitcher}
           stats={statsById[homePitcher?.id]}
           arsenal={(arsenalById || {})[homePitcher?.id]}
+          arsenalSplits={(arsenalSplitsById || {})[homePitcher?.id]}
           flip
         />
       </div>
@@ -502,8 +504,48 @@ function SubstitutionsLog({ subsLog }) {
   );
 }
 
+// ── BK-91: Pitch splits table (RHB vs LHB) ───────────────────────────────
+function ArsenalSplitsTable({ splits, arsenal }) {
+  // Build union of pitch types across both hands, ordered by overall usage
+  const typeOrder = (arsenal || []).map(p => p.type);
+  const allTypes = [
+    ...typeOrder,
+    ...[...(splits.L || []), ...(splits.R || [])].map(p => p.type).filter(t => !typeOrder.includes(t)),
+  ];
+  const lMap = Object.fromEntries((splits.L || []).map(p => [p.type, p]));
+  const rMap = Object.fromEntries((splits.R || []).map(p => [p.type, p]));
+  const rows = allTypes.filter(t => lMap[t] || rMap[t]);
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="arsenal-splits">
+      <div className="arsenal-splits-header">
+        <span className="arsenal-label">SPLITS</span>
+        <span className="arsenal-splits-col-label">vs LHB</span>
+        <span className="arsenal-splits-col-label">vs RHB</span>
+      </div>
+      {rows.map(type => {
+        const l = lMap[type];
+        const r = rMap[type];
+        const name = (l || r)?.name || type;
+        return (
+          <div key={type} className="arsenal-splits-row">
+            <span className="arsenal-splits-type">{name}</span>
+            <span className="arsenal-splits-val">
+              {l ? `${Math.round(l.pct)}%${l.whiffPct != null ? ` · ${l.whiffPct}%K` : ''}` : '—'}
+            </span>
+            <span className="arsenal-splits-val">
+              {r ? `${Math.round(r.pct)}%${r.whiffPct != null ? ` · ${r.whiffPct}%K` : ''}` : '—'}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Pitcher stat capsule ──────────────────────────────────────────────────
-function PitcherCapsule({ team, label, pitcher, stats, arsenal, flip = false }) {
+function PitcherCapsule({ team, label, pitcher, stats, arsenal, arsenalSplits, flip = false }) {
   const [hlOpen, setHlOpen] = React.useState(false);
 
   if (!pitcher) return <div className="pitcher-capsule empty"><span className="dim">No pitcher selected</span></div>;
@@ -584,6 +626,11 @@ function PitcherCapsule({ team, label, pitcher, stats, arsenal, flip = false }) 
           <span className="arsenal-label">ARSENAL</span>
           <span className="dim" style={{ fontSize: 11 }}>No Statcast data</span>
         </div>
+      )}
+
+      {/* ── BK-91: Pitch splits by batter handedness ────────────────────── */}
+      {arsenalSplits && (arsenalSplits.L?.length > 0 || arsenalSplits.R?.length > 0) && (
+        <ArsenalSplitsTable splits={arsenalSplits} arsenal={arsenal} />
       )}
 
       {/* ── BK-23: Pitcher highlights / lowlights ──────────────────────── */}

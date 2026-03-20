@@ -744,6 +744,49 @@
   color: var(--text-dim);
 }
 
+/* ── BK-91: Arsenal splits (pitch freq by batter handedness) ────────────── */
+.arsenal-splits {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.arsenal-splits-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.arsenal-splits-col-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: var(--text-dim);
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.arsenal-splits-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.arsenal-splits-type {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.arsenal-splits-val {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  text-align: right;
+}
+
 /* ── Stat color key bar ─────────────────────────────────────────────────── */
 .color-key {
   display: flex;
