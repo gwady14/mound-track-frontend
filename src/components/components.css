@@ -1,5 +1,29 @@
 /* ── LineupInput ─────────────────────────────────────────────────────────── */
 
+.offline-banner {
+  background: rgba(234,179,8,.12);
+  border: 1px solid rgba(234,179,8,.35);
+  color: #fbbf24;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.offline-banner button {
+  background: none;
+  border: 1px solid currentColor;
+  color: inherit;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  margin-left: auto;
+}
+.offline-banner button:hover { background: rgba(234,179,8,.15); }
+
 .lineup-form {
   padding: 24px 0;
 }

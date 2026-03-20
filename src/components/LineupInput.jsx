@@ -11,7 +11,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { api } from '../api/index.js';
+import { api, getTeamsCached, getRosterCached } from '../api/index.js';
 
 const BATTING_POSITIONS = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
 const FIELD_POSITIONS   = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH', 'OF', 'P', 'PH'];
@@ -32,11 +32,15 @@ export default function LineupInput({ onSubmit }) {
   const [loadingRoster, setLoadingRoster] = useState({ home: false, away: false });
   const [positionWarning, setPositionWarning] = useState('');
   const [duplicateError,  setDuplicateError]  = useState(''); // BK-75
+  const [usingCache, setUsingCache] = useState(false); // BK-90
 
   // ── Fetch team list on mount ──────────────────────────────────────────────
   useEffect(() => {
-    api.getTeams()
-      .then(mlb => setTeams(mlb))
+    getTeamsCached()
+      .then(({ data, fromCache }) => {
+        setTeams(data);
+        if (fromCache) setUsingCache(true);
+      })
       .catch(console.error)
       .finally(() => setLoadingTeams(false));
   }, []);
@@ -46,7 +50,8 @@ export default function LineupInput({ onSubmit }) {
     if (!teamId) return;
     setLoadingRoster(prev => ({ ...prev, [side]: true }));
     try {
-      const roster = await api.getRoster(teamId);
+      const { data: roster, fromCache } = await getRosterCached(teamId);
+      if (fromCache) setUsingCache(true);
       if (side === 'home') {
         setHomeRoster(roster);
         setHomeLineup(Array(9).fill(null));
@@ -187,6 +192,21 @@ export default function LineupInput({ onSubmit }) {
     });
   };
 
+  // ── BK-90: Refresh cached data ───────────────────────────────────────────
+  const handleRefresh = useCallback(() => {
+    setUsingCache(false);
+    setLoadingTeams(true);
+    getTeamsCached()
+      .then(({ data, fromCache }) => {
+        setTeams(data);
+        if (fromCache) setUsingCache(true);
+      })
+      .catch(console.error)
+      .finally(() => setLoadingTeams(false));
+    if (homeTeam) fetchRoster(homeTeam, 'home');
+    if (awayTeam) fetchRoster(awayTeam, 'away');
+  }, [homeTeam, awayTeam, fetchRoster]);
+
   // ── Pitchers from roster ──────────────────────────────────────────────────
   const pitchersFor = (roster) =>
     roster.filter(p => p.position?.type === 'Pitcher' || p.position?.code === '1');
@@ -197,6 +217,12 @@ export default function LineupInput({ onSubmit }) {
 
   return (
     <form className="lineup-form" onSubmit={handleSubmit}>
+      {usingCache && (
+        <div className="offline-banner">
+          Offline — showing cached data
+          <button type="button" onClick={handleRefresh}>Refresh</button>
+        </div>
+      )}
       <div className="lineup-form-header">
         <h1 className="lineup-title">Load a Game</h1>
         <p className="lineup-sub">

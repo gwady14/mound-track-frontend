@@ -4,7 +4,7 @@
   "description": "Mound Track Baseball Assistant - React UI",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 3000",
+    "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },

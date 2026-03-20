@@ -11,7 +11,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: parseInt(process.env.PORT) || 3000,
     // Proxy all /api requests to the backend so the frontend never touches
     // CORS-restricted APIs directly, and keys stay server-side.
     proxy: {

@@ -8,6 +8,8 @@
  * Vite dev server proxies /api → http://localhost:3001 (see vite.config.js).
  */
 
+import { cacheGet, cacheSet } from './localCache.js';
+
 // In production, point directly at the Railway backend.
 // In development, Vite proxies /api → localhost:3001.
 const BASE = import.meta.env.DEV
@@ -188,3 +190,31 @@ export const api = {
   /** BK-85: reset password using token from email link */
   resetPassword: (token, password) => post('/auth/reset-password', { token, password }),
 };
+
+// ── BK-90: Offline-capable wrappers with localStorage fallback ───────────────
+
+/** Fetch teams list; caches for 7 days; falls back to cache when offline. */
+export async function getTeamsCached() {
+  try {
+    const data = await get('/teams');
+    cacheSet('cache:teams', data);
+    return { data, fromCache: false };
+  } catch {
+    const data = cacheGet('cache:teams');
+    if (data) return { data, fromCache: true };
+    throw new Error('No internet connection and no cached team list available.');
+  }
+}
+
+/** Fetch a roster; caches for 24 hrs; falls back to cache when offline. */
+export async function getRosterCached(teamId) {
+  try {
+    const data = await get(`/teams/${teamId}/roster`);
+    cacheSet(`cache:roster:${teamId}`, data, 24 * 60 * 60 * 1000);
+    return { data, fromCache: false };
+  } catch {
+    const data = cacheGet(`cache:roster:${teamId}`);
+    if (data) return { data, fromCache: true };
+    throw new Error('No internet connection and no cached roster for this team.');
+  }
+}
