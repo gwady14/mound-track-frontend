@@ -337,7 +337,7 @@ function TeamLineupCard({
           <option value="">Select team…</option>
           <optgroup label="MLB">
             {teams.map(t => (
-              <option key={t.id} value={t.id} disabled={t.id === otherTeamId}>{t.name}</option>
+              <option key={t.id} value={t.id} disabled={String(t.id) === String(otherTeamId)}>{t.name}</option>
             ))}
           </optgroup>
         </select>
