@@ -141,7 +141,7 @@ export default function App() {
       ]);
 
       // ── Fetch BvP matchups: away batters vs HOME pitcher, home batters vs AWAY pitcher ─
-      const [awayBvP, homeBvP] = await Promise.all([
+      const [awayBvPResult, homeBvPResult] = await Promise.allSettled([
         homePitcher
           ? api.getBulkMatchups(awayLineup.filter(Boolean), homePitcher.id)
           : Promise.resolve([]),
@@ -149,6 +149,8 @@ export default function App() {
           ? api.getBulkMatchups(homeLineup.filter(Boolean), awayPitcher.id)
           : Promise.resolve([]),
       ]);
+      const awayBvP = awayBvPResult.status === 'fulfilled' ? awayBvPResult.value : [];
+      const homeBvP = homeBvPResult.status === 'fulfilled' ? homeBvPResult.value : [];
 
       // ── Index results by player ID ───────────────────────────────────────
       const statsById = {};
