@@ -609,6 +609,11 @@ function PitcherCapsule({ team, label, pitcher, stats, arsenal, arsenalSplits, f
           {pitcher.throwHand && (
             <span className="hand-badge">{pitcher.throwHand}HP</span>
           )}
+          {stats?._season && stats._season < new Date().getFullYear() && (
+            <span className="hand-badge" style={{ color: 'var(--text-dim)', background: 'var(--bg-card)' }}>
+              {stats._season}
+            </span>
+          )}
           {mlb.wins != null && (
             <span className="record">
               {mlb.wins}–{mlb.losses}

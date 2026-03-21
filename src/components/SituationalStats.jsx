@@ -203,6 +203,11 @@ export default function SituationalStats({ batter, gameState, statsById }) {
             {/* Season stat line */}
             {seasonStats?.mlb && (
               <div className="season-line">
+              {seasonStats._season && seasonStats._season < new Date().getFullYear() && (
+                <span style={{ fontSize: 10, color: 'var(--text-dim)', alignSelf: 'center', marginRight: 4 }}>
+                  {seasonStats._season}
+                </span>
+              )}
                 <StatPill label="AVG"  value={seasonStats.mlb.avg}     fmt={(v) => v ? v.toString().replace(/^0/, '') : '—'} />
                 <StatPill label="OBP"  value={seasonStats.mlb.obp}     fmt={(v) => v ? v.toString().replace(/^0/, '') : '—'} />
                 <StatPill label="SLG"  value={seasonStats.mlb.slg}     fmt={(v) => v ? v.toString().replace(/^0/, '') : '—'} />
