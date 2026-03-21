@@ -824,9 +824,9 @@ function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitch
               const streak = (streaksById || {})[player.id] || {};
               const seasonAvg = parseFloat(mlb.avg) || null;
 
-              // ── AT BAT marker — only shown when this team is currently batting ──
+              // ── AT BAT / ON DECK position ──────────────────────────────
               const currentSlot = (batterIdx ?? 0) % (lineupLength || 9);
-              const isAtBat     = isBatting && slot === currentSlot;
+              const isAtBat     = slot === currentSlot;
 
               // Color L7/L30 relative to season average: hot = green, cold = red
               const streakColor = (val) => {
