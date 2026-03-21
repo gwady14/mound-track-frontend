@@ -265,7 +265,7 @@ export default function App() {
 
       // ── Background: fetch pitch arsenal + splits for both starters ───
       Promise.allSettled(
-        allPitchers.map(p => getPitcherArsenalCached(p.id).then(a => ({ id: p.id, pitches: a })))
+        allPitchers.map(p => getPitcherArsenalCached(p.id).then(a => ({ id: p.id, pitches: a?.pitches ?? a })))
       ).then(results => {
         const arsenalById = {};
         for (const r of results) {
@@ -374,7 +374,7 @@ export default function App() {
 
     getPitcherArsenalCached(pitcher.id)
       .then(a => setGameData(prev =>
-        prev ? { ...prev, arsenalById: { ...prev.arsenalById, [pitcher.id]: a } } : prev))
+        prev ? { ...prev, arsenalById: { ...prev.arsenalById, [pitcher.id]: a?.pitches ?? a } } : prev))
       .catch(console.error);
 
     getPitcherArsenalSplitsCached(pitcher.id)
