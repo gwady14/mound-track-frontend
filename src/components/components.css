@@ -768,47 +768,56 @@
   color: var(--text-dim);
 }
 
-/* ── BK-91: Arsenal splits (pitch freq by batter handedness) ────────────── */
-.arsenal-splits {
+/* ── BK-91: Arsenal splits table ────────────────────────────────────────── */
+.arsenal-splits-table {
+  width: 100%;
+  border-collapse: collapse;
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--border);
 }
 
-.arsenal-splits-header {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 4px;
-  margin-bottom: 4px;
-}
-
-.arsenal-splits-col-label {
+.arsenal-splits-table thead tr:first-child th {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.07em;
   color: var(--text-dim);
-  text-align: right;
   text-transform: uppercase;
+  padding-bottom: 1px;
+  text-align: center;
 }
 
-.arsenal-splits-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 4px;
-  padding: 2px 0;
+.arsenal-splits-table thead tr:last-child th {
+  font-size: 9px;
+  color: var(--text-dim);
+  font-weight: 400;
+  padding-bottom: 4px;
+  text-align: center;
 }
 
-.arsenal-splits-type {
+.arsenal-splits-table .ast-pitch-col { width: 38%; text-align: left; }
+.arsenal-splits-table .ast-hand-col  { text-align: center; }
+.arsenal-splits-table .ast-sub-col   { text-align: center; }
+
+.arsenal-splits-table tbody tr { border-top: 1px solid rgba(255,255,255,.04); }
+
+.ast-name {
   font-size: 11px;
   font-weight: 600;
   color: var(--accent);
+  padding: 3px 0;
 }
 
-.arsenal-splits-val {
+.ast-val {
   font-size: 11px;
   font-family: var(--font-mono);
-  color: var(--text-secondary);
-  text-align: right;
+  color: #fff;
+  text-align: center;
+  padding: 3px 4px;
+}
+
+.ast-dim {
+  color: var(--text-dim);
 }
 
 /* ── Stat color key bar ─────────────────────────────────────────────────── */

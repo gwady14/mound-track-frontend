@@ -506,7 +506,6 @@ function SubstitutionsLog({ subsLog }) {
 
 // ── BK-91: Pitch splits table (RHB vs LHB) ───────────────────────────────
 function ArsenalSplitsTable({ splits, arsenal }) {
-  // Build union of pitch types across both hands, ordered by overall usage
   const typeOrder = (arsenal || []).map(p => p.type);
   const allTypes = [
     ...typeOrder,
@@ -517,30 +516,41 @@ function ArsenalSplitsTable({ splits, arsenal }) {
   const rows = allTypes.filter(t => lMap[t] || rMap[t]);
   if (rows.length === 0) return null;
 
+  const pct = v => v != null ? `${Math.round(v)}%` : '—';
+
   return (
-    <div className="arsenal-splits">
-      <div className="arsenal-splits-header">
-        <span className="arsenal-label">SPLITS</span>
-        <span className="arsenal-splits-col-label">vs LHB</span>
-        <span className="arsenal-splits-col-label">vs RHB</span>
-      </div>
-      {rows.map(type => {
-        const l = lMap[type];
-        const r = rMap[type];
-        const name = (l || r)?.name || type;
-        return (
-          <div key={type} className="arsenal-splits-row">
-            <span className="arsenal-splits-type">{name}</span>
-            <span className="arsenal-splits-val">
-              {l ? `${Math.round(l.pct)}%${l.whiffPct != null ? ` · ${Math.round(l.whiffPct)}%K` : ''}` : '—'}
-            </span>
-            <span className="arsenal-splits-val">
-              {r ? `${Math.round(r.pct)}%${r.whiffPct != null ? ` · ${Math.round(r.whiffPct)}%K` : ''}` : '—'}
-            </span>
-          </div>
-        );
-      })}
-    </div>
+    <table className="arsenal-splits-table">
+      <thead>
+        <tr>
+          <th className="ast-pitch-col"></th>
+          <th className="ast-hand-col" colSpan={2}>VS LHB</th>
+          <th className="ast-hand-col" colSpan={2}>VS RHB</th>
+        </tr>
+        <tr>
+          <th></th>
+          <th className="ast-sub-col">Use%</th>
+          <th className="ast-sub-col">Whiff%</th>
+          <th className="ast-sub-col">Use%</th>
+          <th className="ast-sub-col">Whiff%</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map(type => {
+          const l = lMap[type];
+          const r = rMap[type];
+          const name = (l || r)?.name || type;
+          return (
+            <tr key={type}>
+              <td className="ast-name">{name}</td>
+              <td className="ast-val">{pct(l?.pct)}</td>
+              <td className="ast-val ast-dim">{pct(l?.whiffPct)}</td>
+              <td className="ast-val">{pct(r?.pct)}</td>
+              <td className="ast-val ast-dim">{pct(r?.whiffPct)}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 
@@ -620,22 +630,11 @@ function PitcherCapsule({ team, label, pitcher, stats, arsenal, arsenalSplits, f
           </button>
           {pitchOpen && (
             <>
-              {arsenal.length > 0 ? (
-                <div className="arsenal-pitches">
-                  {arsenal.map(p => (
-                    <div key={p.type} className="arsenal-pitch">
-                      <span className="arsenal-type">{p.name}</span>
-                      <span className="arsenal-pct">{Math.round(p.pct)}%</span>
-                      {p.velocity && <span className="arsenal-velo">{p.velocity}mph</span>}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <span className="dim" style={{ fontSize: 11 }}>No Statcast data</span>
-              )}
-              {arsenalSplits && (arsenalSplits.L?.length > 0 || arsenalSplits.R?.length > 0) && (
+              {arsenalSplits && (arsenalSplits.L?.length > 0 || arsenalSplits.R?.length > 0) ? (
                 <ArsenalSplitsTable splits={arsenalSplits} arsenal={arsenal} />
-              )}
+              ) : arsenal.length === 0 ? (
+                <span className="dim" style={{ fontSize: 11 }}>No Statcast data</span>
+              ) : null}
             </>
           )}
         </div>
