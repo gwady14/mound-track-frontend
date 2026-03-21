@@ -204,7 +204,7 @@ export async function getTeamsCached() {
     cacheSet('cache:teams', data);
     return { data, fromCache: false };
   } catch {
-    const data = cacheGet('cache:teams');
+    const data = await cacheGet('cache:teams');
     if (data) return { data, fromCache: true };
     throw new Error('No internet connection and no cached team list available.');
   }
@@ -217,7 +217,7 @@ export async function getRosterCached(teamId) {
     cacheSet(`cache:roster:${teamId}`, data, 24 * 60 * 60 * 1000);
     return { data, fromCache: false };
   } catch {
-    const data = cacheGet(`cache:roster:${teamId}`);
+    const data = await cacheGet(`cache:roster:${teamId}`);
     if (data) return { data, fromCache: true };
     throw new Error('No internet connection and no cached roster for this team.');
   }
@@ -233,7 +233,7 @@ export async function getPitcherStatsCached(pitcherId) {
     cacheSet(key, data, PITCHER_TTL);
     return data;
   } catch {
-    const cached = cacheGet(key);
+    const cached = await cacheGet(key);
     if (cached) return cached;
     throw new Error('Offline and no cached pitcher stats.');
   }
@@ -247,7 +247,7 @@ export async function getPitcherArsenalCached(pitcherId) {
     cacheSet(key, data, PITCHER_TTL);
     return data;
   } catch {
-    const cached = cacheGet(key);
+    const cached = await cacheGet(key);
     if (cached) return cached;
     throw new Error('Offline and no cached arsenal.');
   }
@@ -261,7 +261,7 @@ export async function getPitcherArsenalSplitsCached(pitcherId) {
     cacheSet(key, data, PITCHER_TTL);
     return data;
   } catch {
-    const cached = cacheGet(key);
+    const cached = await cacheGet(key);
     if (cached) return cached;
     throw new Error('Offline and no cached splits.');
   }
@@ -278,7 +278,7 @@ export async function getBullpenCached(teamId, season) {
     cacheSet(key, data, CACHE_TTL);
     return data;
   } catch {
-    const cached = cacheGet(key);
+    const cached = await cacheGet(key);
     if (cached) return cached;
     throw new Error('Offline and no cached bullpen data.');
   }
@@ -294,7 +294,7 @@ function makeCached(key, fetcher, ttl = CACHE_TTL) {
       cacheSet(k, data, ttl);
       return data;
     } catch {
-      const cached = cacheGet(k);
+      const cached = await cacheGet(k);
       if (cached) return cached;
       throw new Error('Offline and no cached data.');
     }
@@ -318,7 +318,7 @@ export async function getBulkMatchupsCached(batters, pitcherId) {
     cacheSet(key, data, BATTER_TTL);
     return data;
   } catch {
-    const cached = cacheGet(key);
+    const cached = await cacheGet(key);
     if (cached) return cached;
     throw new Error('Offline and no cached BvP data.');
   }
