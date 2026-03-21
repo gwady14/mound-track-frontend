@@ -12,7 +12,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { api } from '../api/index.js';
+import { getBullpenCached } from '../api/index.js';
 
 // ── Reuse colorClass from MatchupsPanel inline ────────────────────────────
 function colorClass(stat, value) {
@@ -141,7 +141,7 @@ export default function BullpenPanel({ homeTeam, awayTeam }) {
   useEffect(() => {
     if (!awayTeam?.id) return;
     const season = awayTeam.sportId === 51 ? 2026 : undefined;
-    api.getBullpen(awayTeam.id, season)
+    getBullpenCached(awayTeam.id, season)
       .then(d => setAwayData(d))
       .catch(e => setErrors(prev => ({ ...prev, away: e.message })))
       .finally(() => setLoading(prev => ({ ...prev, away: false })));
@@ -150,7 +150,7 @@ export default function BullpenPanel({ homeTeam, awayTeam }) {
   useEffect(() => {
     if (!homeTeam?.id) return;
     const season = homeTeam.sportId === 51 ? 2026 : undefined;
-    api.getBullpen(homeTeam.id, season)
+    getBullpenCached(homeTeam.id, season)
       .then(d => setHomeData(d))
       .catch(e => setErrors(prev => ({ ...prev, home: e.message })))
       .finally(() => setLoading(prev => ({ ...prev, home: false })));

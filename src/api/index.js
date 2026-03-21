@@ -266,3 +266,18 @@ export async function getPitcherArsenalSplitsCached(pitcherId) {
     throw new Error('Offline and no cached splits.');
   }
 }
+
+/** Fetch bullpen panel data for a team; caches 1hr; falls back to cache offline. */
+export async function getBullpenCached(teamId, season) {
+  const key = `cache:bullpen:${teamId}:${season ?? 'cur'}`;
+  const url = `/bullpen/${teamId}${season ? `?season=${season}` : ''}`;
+  try {
+    const data = await get(url);
+    cacheSet(key, data, 60 * 60 * 1000); // 1 hour
+    return data;
+  } catch {
+    const cached = cacheGet(key);
+    if (cached) return cached;
+    throw new Error('Offline and no cached bullpen data.');
+  }
+}

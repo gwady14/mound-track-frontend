@@ -105,6 +105,25 @@ export default function App() {
     }
   }, [gameData, gameState, tab]);
 
+  // BK-90: Pre-cache all roster pitchers whenever a game is loaded (fresh or restored).
+  // Using team IDs as deps so this only re-runs when the game changes, not on every state update.
+  useEffect(() => {
+    if (!gameData) return;
+    setOfflineReady(false);
+    const isPitcher = p => p?.position?.type === 'Pitcher' || p?.position?.code === '1';
+    const allRosterPitchers = [
+      ...(gameData.homeRoster || []).filter(isPitcher),
+      ...(gameData.awayRoster || []).filter(isPitcher),
+    ].filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+    Promise.allSettled(
+      allRosterPitchers.flatMap(p => [
+        getPitcherStatsCached(p.id),
+        getPitcherArsenalCached(p.id),
+        getPitcherArsenalSplitsCached(p.id),
+      ])
+    ).then(() => setOfflineReady(true));
+  }, [gameData?.homeTeam?.id, gameData?.awayTeam?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // BK-79: show a dismissible toast when any background data fetch fails
   const showFetchError = useCallback(() => {
     setFetchError('Some player data failed to load — stats panels may be incomplete.');
@@ -263,23 +282,6 @@ export default function App() {
         }
         setGameData(prev => prev ? { ...prev, milestonesById } : prev);
       });
-
-      // ── BK-90: Pre-cache all roster pitchers for offline use ───────────
-      // Runs last so it doesn't compete with higher-priority foreground fetches.
-      // When done, sets offlineReady = true so the badge appears.
-      const isPitcher = p => p?.position?.type === 'Pitcher' || p?.position?.code === '1';
-      const allRosterPitchers = [
-        ...(homeRoster || []).filter(isPitcher),
-        ...(awayRoster || []).filter(isPitcher),
-      ].filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
-
-      Promise.allSettled(
-        allRosterPitchers.flatMap(p => [
-          getPitcherStatsCached(p.id),
-          getPitcherArsenalCached(p.id),
-          getPitcherArsenalSplitsCached(p.id),
-        ])
-      ).then(() => setOfflineReady(true));
 
     } catch (err) {
       console.error('Lineup load error:', err);
