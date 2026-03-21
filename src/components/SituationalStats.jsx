@@ -182,9 +182,6 @@ export default function SituationalStats({ batter, gameState, statsById }) {
         <span className="stat-poor">■ Poor</span>
       </div>
 
-      {/* ── Situation Spotlight ──────────────────────────────────────────── */}
-      {batter && splits && <SpotlightSection items={spotlightItems} />}
-
       {/* ── Batter header ────────────────────────────────────────────────── */}
       <div className="card sit-header-card">
         {batter ? (
@@ -222,6 +219,9 @@ export default function SituationalStats({ batter, gameState, statsById }) {
           <div className="dim">No batter active. Use the Scorebook tab to track at-bats.</div>
         )}
       </div>
+
+      {/* ── Situation Spotlight ──────────────────────────────────────────── */}
+      {batter && splits && <SpotlightSection items={spotlightItems} />}
 
       {/* ── Active game state banner ─────────────────────────────────────── */}
       <div className="active-situations">
@@ -419,14 +419,12 @@ function SplitCard({ title, highlighted, rows }) {
       <table className="stat-table" style={{ fontSize: 12 }}>
         <thead>
           <tr>
-            <th style={{ minWidth: 120 }}>Situation</th>
-            <th>PA</th>
-            <th>AVG</th>
-            <th>OBP</th>
-            <th>SLG</th>
-            <th>OPS</th>
-            <th>HR</th>
-            <th>RBI</th>
+            <th style={{ minWidth: 120, textAlign: 'left' }}>Situation</th>
+            <th style={{ textAlign: 'right' }}>PA</th>
+            <th style={{ textAlign: 'right' }}>AVG</th>
+            <th style={{ textAlign: 'right' }}>OBP</th>
+            <th style={{ textAlign: 'right' }}>SLG</th>
+            <th style={{ textAlign: 'right' }}>OPS</th>
           </tr>
         </thead>
         <tbody>
@@ -435,13 +433,11 @@ function SplitCard({ title, highlighted, rows }) {
             return (
               <tr key={label}>
                 <td className="name-cell" style={{ fontFamily: 'var(--font-sans)' }}>{label}</td>
-                <td>{data.plateAppearances ?? data.atBats ?? '—'}</td>
-                <td className={colorClass('avg', data.avg)}>{fmtRate(data.avg)}</td>
-                <td className={colorClass('obp', data.obp)}>{fmtRate(data.obp)}</td>
-                <td className={colorClass('slg', data.slg)}>{fmtRate(data.slg)}</td>
-                <td className={colorClass('ops', data.ops)}>{fmtOps(data.ops)}</td>
-                <td>{data.homeRuns ?? '—'}</td>
-                <td>{data.rbi ?? '—'}</td>
+                <td style={{ textAlign: 'right' }}>{data.plateAppearances ?? data.atBats ?? '—'}</td>
+                <td className={colorClass('avg', data.avg)} style={{ textAlign: 'right' }}>{fmtRate(data.avg)}</td>
+                <td className={colorClass('obp', data.obp)} style={{ textAlign: 'right' }}>{fmtRate(data.obp)}</td>
+                <td className={colorClass('slg', data.slg)} style={{ textAlign: 'right' }}>{fmtRate(data.slg)}</td>
+                <td className={colorClass('ops', data.ops)} style={{ textAlign: 'right' }}>{fmtOps(data.ops)}</td>
               </tr>
             );
           })}
