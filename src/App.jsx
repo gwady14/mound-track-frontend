@@ -20,7 +20,14 @@ import AuthPage        from './components/AuthPage.jsx';
 import GameHistory     from './components/GameHistory.jsx';
 import AdminPanel      from './components/AdminPanel.jsx';
 import { useAuth }     from './context/AuthContext.jsx';
-import { api, getTeamsCached, getRosterCached, getPitcherStatsCached, getPitcherArsenalCached, getPitcherArsenalSplitsCached, getBullpenCached } from './api/index.js';
+import {
+  api,
+  getTeamsCached, getRosterCached,
+  getPitcherStatsCached, getPitcherArsenalCached, getPitcherArsenalSplitsCached,
+  getBullpenCached,
+  getBatterStatsCached, getBatterStreaksCached, getSprayChartCached, getZonesCached,
+  getMilestonesCached, getSituationalCached, getPitcherFatigueCached, getBulkMatchupsCached,
+} from './api/index.js';
 import './App.css';
 
 // ── localStorage persistence ────────────────────────────────────────────────
@@ -111,20 +118,42 @@ export default function App() {
     if (!gameData) return;
     setOfflineReady(false);
     const isPitcher = p => p?.position?.type === 'Pitcher' || p?.position?.code === '1';
-    const allRosterPitchers = [
-      ...(gameData.homeRoster || []).filter(isPitcher),
-      ...(gameData.awayRoster || []).filter(isPitcher),
-    ].filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+    const homeRosterPitchers = (gameData.homeRoster || []).filter(isPitcher);
+    const awayRosterPitchers = (gameData.awayRoster || []).filter(isPitcher);
+    const allRosterPitchers  = [...homeRosterPitchers, ...awayRosterPitchers]
+      .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+    const allLineupBatters = [
+      ...(gameData.homeLineup || []),
+      ...(gameData.awayLineup || []),
+    ].filter(Boolean).filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
     const homeTeamSeason = gameData.homeTeam?.sportId === 51 ? 2026 : undefined;
     const awayTeamSeason = gameData.awayTeam?.sportId === 51 ? 2026 : undefined;
+    const homeLineup = (gameData.homeLineup || []).filter(Boolean);
+    const awayLineup = (gameData.awayLineup || []).filter(Boolean);
+
     Promise.allSettled([
+      // Bullpen panels
       getBullpenCached(gameData.homeTeam.id, homeTeamSeason),
       getBullpenCached(gameData.awayTeam.id, awayTeamSeason),
+      // All roster pitcher data (stats, arsenal, splits, fatigue)
       ...allRosterPitchers.flatMap(p => [
         getPitcherStatsCached(p.id),
         getPitcherArsenalCached(p.id),
         getPitcherArsenalSplitsCached(p.id),
+        getPitcherFatigueCached(p.id),
       ]),
+      // All lineup batter data
+      ...allLineupBatters.flatMap(b => [
+        getBatterStatsCached(b.id),
+        getBatterStreaksCached(b.id),
+        getSprayChartCached(b.id),
+        getZonesCached(b.id),
+        getMilestonesCached(b.id),
+        getSituationalCached(b.id),
+      ]),
+      // BvP: each lineup vs every opposing roster pitcher
+      ...homeRosterPitchers.map(p => getBulkMatchupsCached(awayLineup, p.id)),
+      ...awayRosterPitchers.map(p => getBulkMatchupsCached(homeLineup, p.id)),
     ]).then(() => setOfflineReady(true));
   }, [gameData?.homeTeam?.id, gameData?.awayTeam?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -153,24 +182,14 @@ export default function App() {
       const allPitchers = [awayPitcher, homePitcher].filter(Boolean);
 
       const [batterStats, pitcherStats] = await Promise.all([
-        // Season batting stats for each starter
-        Promise.allSettled(
-          allBatters.map(b => api.getBatterStats(b.id).then(s => ({ id: b.id, ...s })))
-        ),
-        // Season pitching stats for each starter
-        Promise.allSettled(
-          allPitchers.map(p => api.getPitcherStats(p.id).then(s => ({ id: p.id, ...s })))
-        ),
+        Promise.allSettled(allBatters.map(b => getBatterStatsCached(b.id).then(s => ({ id: b.id, ...s })))),
+        Promise.allSettled(allPitchers.map(p => getPitcherStatsCached(p.id).then(s => ({ id: p.id, ...s })))),
       ]);
 
       // ── Fetch BvP matchups: away batters vs HOME pitcher, home batters vs AWAY pitcher ─
       const [awayBvPResult, homeBvPResult] = await Promise.allSettled([
-        homePitcher
-          ? api.getBulkMatchups(awayLineup.filter(Boolean), homePitcher.id)
-          : Promise.resolve([]),
-        awayPitcher
-          ? api.getBulkMatchups(homeLineup.filter(Boolean), awayPitcher.id)
-          : Promise.resolve([]),
+        homePitcher ? getBulkMatchupsCached(awayLineup.filter(Boolean), homePitcher.id) : Promise.resolve([]),
+        awayPitcher ? getBulkMatchupsCached(homeLineup.filter(Boolean), awayPitcher.id) : Promise.resolve([]),
       ]);
       const awayBvP = awayBvPResult.status === 'fulfilled' ? awayBvPResult.value : [];
       const homeBvP = homeBvPResult.status === 'fulfilled' ? homeBvPResult.value : [];
@@ -220,7 +239,7 @@ export default function App() {
 
       // ── Background: fetch streaks and patch into gameData ─────────────
       Promise.allSettled(
-        allBatters.map(b => api.getBatterStreaks(b.id).then(s => ({ id: b.id, ...s })))
+        allBatters.map(b => getBatterStreaksCached(b.id).then(s => ({ id: b.id, ...s })))
       ).then(results => {
         const streaksById = {};
         for (const r of results) {
@@ -231,7 +250,7 @@ export default function App() {
 
       // ── Background: fetch pitch arsenal + splits for both starters ───
       Promise.allSettled(
-        allPitchers.map(p => api.getPitcherArsenal(p.id).then(a => ({ id: p.id, pitches: a })))
+        allPitchers.map(p => getPitcherArsenalCached(p.id).then(a => ({ id: p.id, pitches: a })))
       ).then(results => {
         const arsenalById = {};
         for (const r of results) {
@@ -241,7 +260,7 @@ export default function App() {
       });
 
       Promise.allSettled(
-        allPitchers.map(p => api.getPitcherArsenalSplits(p.id).then(s => ({ id: p.id, splits: s })))
+        allPitchers.map(p => getPitcherArsenalSplitsCached(p.id).then(s => ({ id: p.id, splits: s })))
       ).then(results => {
         const arsenalSplitsById = {};
         for (const r of results) {
@@ -252,7 +271,7 @@ export default function App() {
 
       // ── Background: fetch spray chart data for every batter ───────────
       Promise.allSettled(
-        allBatters.map(b => api.getSprayChart(b.id).then(dots => ({ id: b.id, dots })))
+        allBatters.map(b => getSprayChartCached(b.id).then(dots => ({ id: b.id, dots })))
       ).then(results => {
         const sprayById = {};
         for (const r of results) {
@@ -265,7 +284,7 @@ export default function App() {
       // Reuses the same Statcast CSV cache as spray — no extra network cost
       // once spray has been fetched; zones are computed server-side.
       Promise.allSettled(
-        allBatters.map(b => api.getZones(b.id).then(zones => ({ id: b.id, zones })))
+        allBatters.map(b => getZonesCached(b.id).then(zones => ({ id: b.id, zones })))
       ).then(results => {
         const zonesById = {};
         for (const r of results) {
@@ -278,7 +297,7 @@ export default function App() {
       // Batters only — pitchers in the lineup are a rare DH-off edge case
       // the milestone endpoint checks both career splits internally anyway.
       Promise.allSettled(
-        allBatters.map(b => api.getMilestones(b.id).then(m => ({ id: b.id, milestones: m })))
+        allBatters.map(b => getMilestonesCached(b.id).then(m => ({ id: b.id, milestones: m })))
       ).then(results => {
         const milestonesById = {};
         for (const r of results) {
@@ -320,7 +339,7 @@ export default function App() {
     setGameData(prev => {
       if (!prev) return prev;
       const battingLineup = side === 'home' ? prev.awayLineup : prev.homeLineup;
-      api.getBulkMatchups(battingLineup.filter(Boolean), pitcher.id)
+      getBulkMatchupsCached(battingLineup.filter(Boolean), pitcher.id)
         .then(results => {
           const newEntries = {};
           for (const r of results) {
@@ -393,22 +412,22 @@ export default function App() {
     });
 
     // Background: fetch new player's season stats, streaks, milestones
-    api.getBatterStats(newPlayer.id)
+    getBatterStatsCached(newPlayer.id)
       .then(s => setGameData(prev =>
         prev ? { ...prev, statsById: { ...prev.statsById, [newPlayer.id]: s } } : prev))
       .catch(console.error);
 
-    api.getBatterStreaks(newPlayer.id)
+    getBatterStreaksCached(newPlayer.id)
       .then(s => setGameData(prev =>
         prev ? { ...prev, streaksById: { ...prev.streaksById, [newPlayer.id]: s } } : prev))
       .catch(console.error);
 
-    api.getMilestones(newPlayer.id)
+    getMilestonesCached(newPlayer.id)
       .then(m => setGameData(prev =>
         prev ? { ...prev, milestonesById: { ...prev.milestonesById, [newPlayer.id]: m } } : prev))
       .catch(console.error);
 
-    api.getZones(newPlayer.id)
+    getZonesCached(newPlayer.id)
       .then(zones => setGameData(prev =>
         prev ? { ...prev, zonesById: { ...prev.zonesById, [newPlayer.id]: zones } } : prev))
       .catch(console.error);
@@ -420,7 +439,7 @@ export default function App() {
         ? prev.currentAwayPitcher?.id
         : prev.currentHomePitcher?.id;
       if (pitcherId) {
-        api.getBulkMatchups([newPlayer], pitcherId)
+        getBulkMatchupsCached([newPlayer], pitcherId)
           .then(results => {
             const entries = {};
             for (const r of results) if (r.batterId) entries[`${r.batterId}_${pitcherId}`] = r;

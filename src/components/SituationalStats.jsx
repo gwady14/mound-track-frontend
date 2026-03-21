@@ -18,7 +18,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { api } from '../api/index.js';
+import { api, getSituationalCached } from '../api/index.js';
 
 // Situation code → human-readable label
 // These match the MLB Stats API statSplits codes
@@ -159,7 +159,7 @@ export default function SituationalStats({ batter, gameState, statsById }) {
     setLoading(true);
     setError(null);
 
-    api.getSituational(batter.id)
+    getSituationalCached(batter.id)
       .then(setSplits)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));

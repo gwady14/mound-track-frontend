@@ -281,3 +281,43 @@ export async function getBullpenCached(teamId, season) {
     throw new Error('Offline and no cached bullpen data.');
   }
 }
+
+const BATTER_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+function makeCached(key, fetcher, ttl = BATTER_TTL) {
+  return async (...args) => {
+    const k = typeof key === 'function' ? key(...args) : key;
+    try {
+      const data = await fetcher(...args);
+      cacheSet(k, data, ttl);
+      return data;
+    } catch {
+      const cached = cacheGet(k);
+      if (cached) return cached;
+      throw new Error('Offline and no cached data.');
+    }
+  };
+}
+
+export const getBatterStatsCached     = makeCached(id => `cache:batter-stats:${id}`,   id => get(`/stats/batter/${id}`));
+export const getBatterStreaksCached   = makeCached(id => `cache:batter-streaks:${id}`, id => get(`/stats/batter/${id}/streaks`));
+export const getSprayChartCached      = makeCached(id => `cache:spray:${id}`,          id => get(`/spray/${id}`));
+export const getZonesCached           = makeCached(id => `cache:zones:${id}`,          id => get(`/zones/${id}`));
+export const getMilestonesCached      = makeCached(id => `cache:milestones:${id}`,     id => get(`/milestones/${id}`));
+export const getSituationalCached     = makeCached(id => `cache:situational:${id}`,    id => get(`/situational/${id}`));
+export const getPitcherFatigueCached  = makeCached(id => `cache:fatigue:${id}`,        id => get(`/pitcher-fatigue/${id}`), 60 * 60 * 1000);
+
+/** BvP bulk matchups; key is pitcherId + sorted batter IDs; caches 24hr. */
+export async function getBulkMatchupsCached(batters, pitcherId) {
+  const ids = batters.map(b => b.id).sort().join(',');
+  const key = `cache:bvp:${pitcherId}:${ids}`;
+  try {
+    const data = await post('/matchups/bulk', { batters, pitcherId });
+    cacheSet(key, data, BATTER_TTL);
+    return data;
+  } catch {
+    const cached = cacheGet(key);
+    if (cached) return cached;
+    throw new Error('Offline and no cached BvP data.');
+  }
+}

@@ -20,7 +20,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import PlayByPlayLog from './PlayByPlayLog.jsx';
-import { api } from '../api/index.js';
+import { api, getPitcherFatigueCached } from '../api/index.js';
 
 // Mirror of backend getFatigueBand — used to recompute live as pitches are thrown
 function getFatigueBand(rolling7dPitches, daysRest) {
@@ -1324,7 +1324,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
     [homePitcherId, awayPitcherId].forEach(pid => {
       if (!pid || fetchedFatigueIds.current.has(pid)) return;
       fetchedFatigueIds.current.add(pid);
-      api.getPitcherFatigue(pid)
+      getPitcherFatigueCached(pid)
         .then(d => setFatigueData(prev => ({ ...prev, [pid]: d })))
         .catch(() => {});
     });
