@@ -1047,9 +1047,10 @@ function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitch
                   <tr className="spray-row">
                     <td colSpan={99} className="spray-row-cell">
                       <SprayChart
-                        dots={(sprayById || {})[player.id] || []}
+                        dots={(sprayById || {})[player.id]?.dots || []}
                         loading={!(player.id in (sprayById || {}))}
                         playerName={player.name}
+                        season={(sprayById || {})[player.id]?._season}
                       />
                     </td>
                   </tr>
@@ -1060,9 +1061,10 @@ function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitch
                   <tr className="zone-row">
                     <td colSpan={99} className="zone-row-cell">
                       <ZoneMap
-                        zones={(zonesById || {})[player.id] || []}
+                        zones={(zonesById || {})[player.id]?.zones || []}
                         loading={!(player.id in (zonesById || {}))}
                         batSide={player.batSide === 'L' ? 'L' : 'R'}
+                        season={(zonesById || {})[player.id]?._season}
                       />
                     </td>
                   </tr>

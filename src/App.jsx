@@ -286,11 +286,11 @@ export default function App() {
 
       // ── Background: fetch spray chart data for every batter ───────────
       Promise.allSettled(
-        allBatters.map(b => getSprayChartCached(b.id).then(dots => ({ id: b.id, dots })))
+        allBatters.map(b => getSprayChartCached(b.id).then(data => ({ id: b.id, data: { dots: data?.dots ?? data, _season: data?._season } })))
       ).then(results => {
         const sprayById = {};
         for (const r of results) {
-          if (r.status === 'fulfilled') sprayById[r.value.id] = r.value.dots;
+          if (r.status === 'fulfilled') sprayById[r.value.id] = r.value.data;
         }
         setGameData(prev => prev ? { ...prev, sprayById } : prev);
       });
@@ -299,11 +299,11 @@ export default function App() {
       // Reuses the same Statcast CSV cache as spray — no extra network cost
       // once spray has been fetched; zones are computed server-side.
       Promise.allSettled(
-        allBatters.map(b => getZonesCached(b.id).then(zones => ({ id: b.id, zones })))
+        allBatters.map(b => getZonesCached(b.id).then(data => ({ id: b.id, data: { zones: data?.zones ?? data, _season: data?._season } })))
       ).then(results => {
         const zonesById = {};
         for (const r of results) {
-          if (r.status === 'fulfilled') zonesById[r.value.id] = r.value.zones;
+          if (r.status === 'fulfilled') zonesById[r.value.id] = r.value.data;
         }
         setGameData(prev => prev ? { ...prev, zonesById } : prev);
       });
@@ -443,8 +443,8 @@ export default function App() {
       .catch(console.error);
 
     getZonesCached(newPlayer.id)
-      .then(zones => setGameData(prev =>
-        prev ? { ...prev, zonesById: { ...prev.zonesById, [newPlayer.id]: zones } } : prev))
+      .then(data => setGameData(prev =>
+        prev ? { ...prev, zonesById: { ...prev.zonesById, [newPlayer.id]: { zones: data?.zones ?? data, _season: data?._season } } } : prev))
       .catch(console.error);
 
     // Background: fetch BvP vs the current opposing pitcher

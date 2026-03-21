@@ -60,7 +60,9 @@ function fmtBA(ba) {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────
-export default function ZoneMap({ zones = [], loading = false, batSide = 'R' }) {
+export default function ZoneMap({ zones = [], loading = false, batSide = 'R', season }) {
+  const currentYear = new Date().getFullYear();
+  const isPriorYear = season && season < currentYear;
   // For left-handed batters, mirror columns so "In" is on the right and "Out" on the left.
   // Switch hitters default to R. The server data uses catcher's POV (col 0 = left, col 2 = right).
   // For RHB: col 0 = In, col 2 = Out (default).
@@ -86,7 +88,10 @@ export default function ZoneMap({ zones = [], loading = false, batSide = 'R' }) 
     <div className="zone-map">
       <div className="zone-map-header">
         <span className="zone-map-title">HOT/COLD ZONES</span>
-        <span className="zone-map-sub">BA by strike-zone location</span>
+        <span className="zone-map-sub">
+          BA by strike-zone location
+          {isPriorYear && <span style={{ marginLeft: 6, color: 'var(--text-dim)', fontSize: 10 }}>{season} Stats</span>}
+        </span>
       </div>
 
       {loading ? (

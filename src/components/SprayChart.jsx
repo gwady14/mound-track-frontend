@@ -52,7 +52,9 @@ const MOUND = { x: 125, y: 166 }; // pitcher's mound
 const VB_W = 250;
 const VB_H = 215;
 
-export default function SprayChart({ dots = [], playerName = '', loading = false }) {
+export default function SprayChart({ dots = [], playerName = '', loading = false, season }) {
+  const currentYear = new Date().getFullYear();
+  const isPriorYear = season && season < currentYear;
   // Separate outs from hits so hits render on top
   const outs = dots.filter(d => d.o === 'out');
   const hits = dots.filter(d => d.o !== 'out');
@@ -174,6 +176,11 @@ export default function SprayChart({ dots = [], playerName = '', loading = false
           );
         })}
         <span className="spray-legend-divider" />
+        {isPriorYear && (
+          <span className="spray-legend-item" style={{ color: 'var(--text-dim)', fontSize: 10 }}>
+            {season} Stats
+          </span>
+        )}
         <span className="spray-summary">
           {total > 0
             ? <>{hitCnt}/{total} BIP · BABIP {(hitCnt / total).toFixed(3).replace(/^0/, '')}{hrCnt > 0 ? ` · ${hrCnt} HR` : ''}</>
