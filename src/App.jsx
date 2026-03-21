@@ -126,6 +126,14 @@ export default function App() {
       ...(gameData.homeLineup || []),
       ...(gameData.awayLineup || []),
     ].filter(Boolean).filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+
+    // All roster position players (subs) — pre-cache lightweight batter data
+    const allRosterBatters = [
+      ...(gameData.homeRoster || []),
+      ...(gameData.awayRoster || []),
+    ].filter(p => p && !isPitcher(p))
+     .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i)
+     .filter(p => !allLineupBatters.find(b => b.id === p.id)); // skip already-in-lineup
     const homeTeamSeason = gameData.homeTeam?.sportId === 51 ? 2026 : undefined;
     const awayTeamSeason = gameData.awayTeam?.sportId === 51 ? 2026 : undefined;
     const homeLineup = (gameData.homeLineup || []).filter(Boolean);
@@ -142,12 +150,19 @@ export default function App() {
         getPitcherArsenalSplitsCached(p.id),
         getPitcherFatigueCached(p.id),
       ]),
-      // All lineup batter data
+      // All lineup batter data (full set)
       ...allLineupBatters.flatMap(b => [
         getBatterStatsCached(b.id),
         getBatterStreaksCached(b.id),
         getSprayChartCached(b.id),
         getZonesCached(b.id),
+        getMilestonesCached(b.id),
+        getSituationalCached(b.id),
+      ]),
+      // All roster position players (potential subs) — cache their situational splits too
+      ...allRosterBatters.flatMap(b => [
+        getBatterStatsCached(b.id),
+        getBatterStreaksCached(b.id),
         getMilestonesCached(b.id),
         getSituationalCached(b.id),
       ]),

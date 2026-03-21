@@ -168,6 +168,7 @@ export default function SituationalStats({ batter, gameState, statsById }) {
   const activeSituations = getActiveSituations(gameState);
   const seasonStats      = statsById?.[batter?.id];
   const spotlightItems   = splits ? getSpotlightItems(gameState, splits) : [];
+  const splitsSeason     = splits?._season;
 
   return (
     <div className="situational-layout">
@@ -193,6 +194,11 @@ export default function SituationalStats({ batter, gameState, statsById }) {
               {batter.batSide && (
                 <span className="badge" style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)' }}>
                   Bats {batter.batSide}
+                </span>
+              )}
+              {splitsSeason && (
+                <span className="badge" style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)' }}>
+                  {splitsSeason} Stats
                 </span>
               )}
             </div>
