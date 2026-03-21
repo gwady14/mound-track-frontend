@@ -347,7 +347,7 @@ export default function App() {
           }
           setGameData(p => p ? { ...p, bvpById: { ...p.bvpById, ...newEntries } } : p);
         })
-        .catch(err => { console.error(err); showFetchError(); });
+        .catch(err => console.error(err));
       return prev;
     });
 
@@ -445,7 +445,7 @@ export default function App() {
             for (const r of results) if (r.batterId) entries[`${r.batterId}_${pitcherId}`] = r;
             setGameData(p => p ? { ...p, bvpById: { ...p.bvpById, ...entries } } : p);
           })
-          .catch(err => { console.error(err); showFetchError(); });
+          .catch(err => console.error(err));
       }
       return prev;
     });
