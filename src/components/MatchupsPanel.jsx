@@ -838,7 +838,7 @@ function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitch
               return (
                 <React.Fragment key={player.id}>
                 <tr
-                  className={isAtBat ? 'row-at-bat' : ''}
+                  className={`player-row${isAtBat ? ' row-at-bat' : ''}`}
                 >
                   <td className="pos-cell order-cell">
                     <div className="order-cell-inner">
@@ -866,7 +866,7 @@ function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitch
                         loading="lazy"
                       />
                       <div className="player-name-info">
-                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'nowrap', gap: 4, overflow: 'hidden' }}>
                           <span style={{ whiteSpace: 'nowrap' }}>{player.name}</span>
                           {player.jerseyNumber && (
                             <span className="jersey-number">#{player.jerseyNumber}</span>

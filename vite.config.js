@@ -16,7 +16,7 @@ export default defineConfig({
     // CORS-restricted APIs directly, and keys stay server-side.
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: process.env.VITE_API_TARGET || 'https://boothcast-backend-production.up.railway.app',
         changeOrigin: true,
       },
     },

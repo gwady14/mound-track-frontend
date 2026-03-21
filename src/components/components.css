@@ -724,7 +724,7 @@
   padding: 0;
   cursor: pointer;
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 .arsenal-toggle-btn:hover { color: var(--text); }
 .arsenal-pitches { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -760,11 +760,17 @@
   color: var(--text-dim);
 }
 
+/* ── Matchup table: equal row heights ───────────────────────────────────── */
+.matchup-tbl .player-row { height: 54px; }
+.matchup-tbl .player-row td { vertical-align: middle; }
+.matchup-tbl .player-row .name-cell { overflow: hidden; }
+
 /* ── BK-91: Arsenal splits table ────────────────────────────────────────── */
 .arsenal-splits-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 6px;
+  margin-top: 2px;
+  border-top: none;
 }
 
 /* VS LHB / VS RHB group headers */
