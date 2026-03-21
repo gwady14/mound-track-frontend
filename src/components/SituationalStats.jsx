@@ -424,7 +424,6 @@ function SplitCard({ title, highlighted, rows }) {
             <th style={{ textAlign: 'right' }}>AVG</th>
             <th style={{ textAlign: 'right' }}>OBP</th>
             <th style={{ textAlign: 'right' }}>SLG</th>
-            <th style={{ textAlign: 'right' }}>OPS</th>
           </tr>
         </thead>
         <tbody>
@@ -437,7 +436,6 @@ function SplitCard({ title, highlighted, rows }) {
                 <td className={colorClass('avg', data.avg)} style={{ textAlign: 'right' }}>{fmtRate(data.avg)}</td>
                 <td className={colorClass('obp', data.obp)} style={{ textAlign: 'right' }}>{fmtRate(data.obp)}</td>
                 <td className={colorClass('slg', data.slg)} style={{ textAlign: 'right' }}>{fmtRate(data.slg)}</td>
-                <td className={colorClass('ops', data.ops)} style={{ textAlign: 'right' }}>{fmtOps(data.ops)}</td>
               </tr>
             );
           })}
