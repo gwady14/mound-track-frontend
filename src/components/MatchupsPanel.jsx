@@ -401,23 +401,23 @@ export default function MatchupsPanel({ gameData, paLog, streaksById, arsenalByI
         <span className="dot-key dot-noab-key">· No AB</span>
       </div>
 
-      {/* ── Starting Pitcher Capsules ────────────────────────────────────── */}
+      {/* ── Current Pitcher Capsules ─────────────────────────────────────── */}
       <div className="pitcher-capsules">
         <PitcherCapsule
           team={awayTeam}
-          label="Away SP"
-          pitcher={awayPitcher}
-          stats={statsById[awayPitcher?.id]}
-          arsenal={(arsenalById || {})[awayPitcher?.id]}
-          arsenalSplits={(arsenalSplitsById || {})[awayPitcher?.id]}
+          label={`Away ${curAway?.id !== awayPitcher?.id ? 'RP' : 'SP'}`}
+          pitcher={curAway}
+          stats={statsById[curAway?.id]}
+          arsenal={(arsenalById || {})[curAway?.id]}
+          arsenalSplits={(arsenalSplitsById || {})[curAway?.id]}
         />
         <PitcherCapsule
           team={homeTeam}
-          label="Home SP"
-          pitcher={homePitcher}
-          stats={statsById[homePitcher?.id]}
-          arsenal={(arsenalById || {})[homePitcher?.id]}
-          arsenalSplits={(arsenalSplitsById || {})[homePitcher?.id]}
+          label={`Home ${curHome?.id !== homePitcher?.id ? 'RP' : 'SP'}`}
+          pitcher={curHome}
+          stats={statsById[curHome?.id]}
+          arsenal={(arsenalById || {})[curHome?.id]}
+          arsenalSplits={(arsenalSplitsById || {})[curHome?.id]}
           flip
         />
       </div>
@@ -441,6 +441,7 @@ export default function MatchupsPanel({ gameData, paLog, streaksById, arsenalByI
           zonesById={resolvedZonesById}
           batterIdx={awayBatterIdx ?? 0}
           lineupLength={awayLineup.length}
+          isBatting={isTop === true}
           pinchHitRoster={(awayRoster || []).filter(p => !awayLineup.some(b => b?.id === p.id))}
           onPinchHit={onPinchHit ? (slot, p) => onPinchHit('away', slot, p) : null}
           alreadyPlayed={(subsLog || []).filter(s => s.side === 'away').map(s => s.outPlayer).filter(Boolean)}
@@ -462,6 +463,7 @@ export default function MatchupsPanel({ gameData, paLog, streaksById, arsenalByI
           zonesById={resolvedZonesById}
           batterIdx={homeBatterIdx ?? 0}
           lineupLength={homeLineup.length}
+          isBatting={isTop === false}
           pinchHitRoster={(homeRoster || []).filter(p => !homeLineup.some(b => b?.id === p.id))}
           onPinchHit={onPinchHit ? (slot, p) => onPinchHit('home', slot, p) : null}
           alreadyPlayed={(subsLog || []).filter(s => s.side === 'home').map(s => s.outPlayer).filter(Boolean)}
@@ -696,7 +698,7 @@ function PitcherCapsule({ team, label, pitcher, stats, arsenal, arsenalSplits, f
 }
 
 // ── One lineup's matchup table ─────────────────────────────────────────────
-function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitcher, pitcherOptions, onPitcherChange, paLog, streaksById, arsenalById, milestonesById, sprayById, zonesById, batterIdx, lineupLength, pinchHitRoster, onPinchHit, alreadyPlayed }) {
+function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitcher, pitcherOptions, onPitcherChange, paLog, streaksById, arsenalById, milestonesById, sprayById, zonesById, batterIdx, lineupLength, isBatting, pinchHitRoster, onPinchHit, alreadyPlayed }) {
   const [activePHSlot,        setActivePHSlot]        = useState(null);
   const [activeSpraySlot,     setActiveSpraySlot]     = useState(null);
   const [activeZoneSlot,      setActiveZoneSlot]      = useState(null);
@@ -822,9 +824,9 @@ function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitch
               const streak = (streaksById || {})[player.id] || {};
               const seasonAvg = parseFloat(mlb.avg) || null;
 
-              // ── AT BAT / ON DECK position ──────────────────────────────
+              // ── AT BAT marker — only shown when this team is currently batting ──
               const currentSlot = (batterIdx ?? 0) % (lineupLength || 9);
-              const isAtBat     = slot === currentSlot;
+              const isAtBat     = isBatting && slot === currentSlot;
 
               // Color L7/L30 relative to season average: hot = green, cold = red
               const streakColor = (val) => {
