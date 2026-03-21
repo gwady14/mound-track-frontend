@@ -303,8 +303,8 @@ function makeCached(key, fetcher, ttl = CACHE_TTL) {
 
 export const getBatterStatsCached     = makeCached(id => `cache:batter-stats:${id}`,   id => get(`/stats/batter/${id}`));
 export const getBatterStreaksCached   = makeCached(id => `cache:batter-streaks:${id}`, id => get(`/stats/batter/${id}/streaks`));
-export const getSprayChartCached      = makeCached(id => `cache:spray:${id}`,          id => get(`/spray/${id}`));
-export const getZonesCached           = makeCached(id => `cache:zones:${id}`,          id => get(`/zones/${id}`));
+export const getSprayChartCached      = makeCached(id => `cache:spray:${id}`,          id => get(`/stats/batter/${id}/spray`));
+export const getZonesCached           = makeCached(id => `cache:zones:${id}`,          id => get(`/stats/batter/${id}/zones`));
 export const getMilestonesCached      = makeCached(id => `cache:milestones:${id}`,     id => get(`/milestones/${id}`));
 export const getSituationalCached     = makeCached(id => `cache:situational:${id}`,    id => get(`/situational/${id}`));
 export const getPitcherFatigueCached  = makeCached(id => `cache:fatigue:${id}`,        id => get(`/pitcher-fatigue/${id}`));
