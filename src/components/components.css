@@ -726,6 +726,16 @@
   text-transform: uppercase;
   margin-right: 2px;
 }
+.arsenal-toggle-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: block;
+  margin-bottom: 4px;
+}
+.arsenal-toggle-btn:hover { color: var(--text); }
+.arsenal-pitches { display: flex; flex-wrap: wrap; gap: 4px; }
 
 .arsenal-pitch {
   display: flex;

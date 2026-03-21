@@ -532,10 +532,10 @@ function ArsenalSplitsTable({ splits, arsenal }) {
           <div key={type} className="arsenal-splits-row">
             <span className="arsenal-splits-type">{name}</span>
             <span className="arsenal-splits-val">
-              {l ? `${Math.round(l.pct)}%${l.whiffPct != null ? ` · ${l.whiffPct}%K` : ''}` : '—'}
+              {l ? `${Math.round(l.pct)}%${l.whiffPct != null ? ` · ${Math.round(l.whiffPct)}%K` : ''}` : '—'}
             </span>
             <span className="arsenal-splits-val">
-              {r ? `${Math.round(r.pct)}%${r.whiffPct != null ? ` · ${r.whiffPct}%K` : ''}` : '—'}
+              {r ? `${Math.round(r.pct)}%${r.whiffPct != null ? ` · ${Math.round(r.whiffPct)}%K` : ''}` : '—'}
             </span>
           </div>
         );
@@ -546,7 +546,8 @@ function ArsenalSplitsTable({ splits, arsenal }) {
 
 // ── Pitcher stat capsule ──────────────────────────────────────────────────
 function PitcherCapsule({ team, label, pitcher, stats, arsenal, arsenalSplits, flip = false }) {
-  const [hlOpen, setHlOpen] = React.useState(false);
+  const [hlOpen,      setHlOpen]      = React.useState(false);
+  const [pitchOpen,   setPitchOpen]   = React.useState(true);
 
   if (!pitcher) return <div className="pitcher-capsule empty"><span className="dim">No pitcher selected</span></div>;
 
@@ -607,30 +608,37 @@ function PitcherCapsule({ team, label, pitcher, stats, arsenal, arsenalSplits, f
         ))}
       </div>
 
-      {/* ── Pitch arsenal ──────────────────────────────────────────────── */}
-      {arsenal && arsenal.length > 0 && (
+      {/* ── Pitch arsenal + splits (collapsible) ───────────────────────── */}
+      {arsenal != null && (
         <div className="pitcher-arsenal">
-          <span className="arsenal-label">ARSENAL</span>
-          {arsenal.map(p => (
-            <div key={p.type} className="arsenal-pitch">
-              <span className="arsenal-type">{p.name}</span>
-              <span className="arsenal-pct">{Math.round(p.pct)}%</span>
-              {p.velocity && <span className="arsenal-velo">{p.velocity}mph</span>}
-              {p.whiffPct != null && <span className="arsenal-whiff">{p.whiffPct}%K</span>}
-            </div>
-          ))}
+          <button
+            className="arsenal-label arsenal-toggle-btn"
+            onClick={() => setPitchOpen(v => !v)}
+            title={pitchOpen ? 'Collapse pitch types' : 'Expand pitch types'}
+          >
+            ARSENAL {pitchOpen ? '▾' : '▸'}
+          </button>
+          {pitchOpen && (
+            <>
+              {arsenal.length > 0 ? (
+                <div className="arsenal-pitches">
+                  {arsenal.map(p => (
+                    <div key={p.type} className="arsenal-pitch">
+                      <span className="arsenal-type">{p.name}</span>
+                      <span className="arsenal-pct">{Math.round(p.pct)}%</span>
+                      {p.velocity && <span className="arsenal-velo">{p.velocity}mph</span>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="dim" style={{ fontSize: 11 }}>No Statcast data</span>
+              )}
+              {arsenalSplits && (arsenalSplits.L?.length > 0 || arsenalSplits.R?.length > 0) && (
+                <ArsenalSplitsTable splits={arsenalSplits} arsenal={arsenal} />
+              )}
+            </>
+          )}
         </div>
-      )}
-      {arsenal && arsenal.length === 0 && (
-        <div className="pitcher-arsenal">
-          <span className="arsenal-label">ARSENAL</span>
-          <span className="dim" style={{ fontSize: 11 }}>No Statcast data</span>
-        </div>
-      )}
-
-      {/* ── BK-91: Pitch splits by batter handedness ────────────────────── */}
-      {arsenalSplits && (arsenalSplits.L?.length > 0 || arsenalSplits.R?.length > 0) && (
-        <ArsenalSplitsTable splits={arsenalSplits} arsenal={arsenal} />
       )}
 
       {/* ── BK-23: Pitcher highlights / lowlights ──────────────────────── */}
