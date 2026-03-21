@@ -285,27 +285,31 @@ export default function App() {
       });
 
       // ── Background: fetch spray chart data for every batter ───────────
-      Promise.allSettled(
-        allBatters.map(b => getSprayChartCached(b.id).then(data => ({ id: b.id, data: { dots: data?.dots ?? data, _season: data?._season } })))
-      ).then(results => {
-        const sprayById = {};
-        for (const r of results) {
-          if (r.status === 'fulfilled') sprayById[r.value.id] = r.value.data;
-        }
-        setGameData(prev => prev ? { ...prev, sprayById } : prev);
+      // Update incrementally as each player's Statcast request completes
+      allBatters.forEach(b => {
+        getSprayChartCached(b.id)
+          .then(data => {
+            const entry = { dots: data?.dots ?? data, _season: data?._season };
+            setGameData(prev => prev ? { ...prev, sprayById: { ...prev.sprayById, [b.id]: entry } } : prev);
+          })
+          .catch(() => {
+            setGameData(prev => prev ? { ...prev, sprayById: { ...prev.sprayById, [b.id]: { dots: [], _season: null } } } : prev);
+          });
       });
 
       // ── Background: fetch hot/cold zone grid for every batter ───────────
       // Reuses the same Statcast CSV cache as spray — no extra network cost
       // once spray has been fetched; zones are computed server-side.
-      Promise.allSettled(
-        allBatters.map(b => getZonesCached(b.id).then(data => ({ id: b.id, data: { zones: data?.zones ?? data, _season: data?._season } })))
-      ).then(results => {
-        const zonesById = {};
-        for (const r of results) {
-          if (r.status === 'fulfilled') zonesById[r.value.id] = r.value.data;
-        }
-        setGameData(prev => prev ? { ...prev, zonesById } : prev);
+      // Update incrementally as each player's data completes
+      allBatters.forEach(b => {
+        getZonesCached(b.id)
+          .then(data => {
+            const entry = { zones: data?.zones ?? data, _season: data?._season };
+            setGameData(prev => prev ? { ...prev, zonesById: { ...prev.zonesById, [b.id]: entry } } : prev);
+          })
+          .catch(() => {
+            setGameData(prev => prev ? { ...prev, zonesById: { ...prev.zonesById, [b.id]: { zones: [], _season: null } } } : prev);
+          });
       });
 
       // ── Background: fetch career milestones for every batter ──────────
