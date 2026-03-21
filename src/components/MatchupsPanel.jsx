@@ -520,11 +520,18 @@ function ArsenalSplitsTable({ splits, arsenal }) {
 
   return (
     <table className="arsenal-splits-table">
+      <colgroup>
+        <col style={{ width: '34%' }} />
+        <col style={{ width: '16.5%' }} />
+        <col style={{ width: '16.5%' }} />
+        <col style={{ width: '16.5%' }} />
+        <col style={{ width: '16.5%' }} />
+      </colgroup>
       <thead>
         <tr>
           <th className="ast-pitch-col"></th>
           <th className="ast-hand-col" colSpan={2}>VS LHB</th>
-          <th className="ast-hand-col" colSpan={2}>VS RHB</th>
+          <th className="ast-hand-col ast-rhb-col" colSpan={2}>VS RHB</th>
         </tr>
         <tr>
           <th></th>
