@@ -20,7 +20,7 @@ import AuthPage        from './components/AuthPage.jsx';
 import GameHistory     from './components/GameHistory.jsx';
 import AdminPanel      from './components/AdminPanel.jsx';
 import { useAuth }     from './context/AuthContext.jsx';
-import { api, getTeamsCached, getRosterCached, getPitcherStatsCached, getPitcherArsenalCached, getPitcherArsenalSplitsCached } from './api/index.js';
+import { api, getTeamsCached, getRosterCached, getPitcherStatsCached, getPitcherArsenalCached, getPitcherArsenalSplitsCached, getBullpenCached } from './api/index.js';
 import './App.css';
 
 // ── localStorage persistence ────────────────────────────────────────────────
@@ -115,13 +115,17 @@ export default function App() {
       ...(gameData.homeRoster || []).filter(isPitcher),
       ...(gameData.awayRoster || []).filter(isPitcher),
     ].filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
-    Promise.allSettled(
-      allRosterPitchers.flatMap(p => [
+    const homeTeamSeason = gameData.homeTeam?.sportId === 51 ? 2026 : undefined;
+    const awayTeamSeason = gameData.awayTeam?.sportId === 51 ? 2026 : undefined;
+    Promise.allSettled([
+      getBullpenCached(gameData.homeTeam.id, homeTeamSeason),
+      getBullpenCached(gameData.awayTeam.id, awayTeamSeason),
+      ...allRosterPitchers.flatMap(p => [
         getPitcherStatsCached(p.id),
         getPitcherArsenalCached(p.id),
         getPitcherArsenalSplitsCached(p.id),
-      ])
-    ).then(() => setOfflineReady(true));
+      ]),
+    ]).then(() => setOfflineReady(true));
   }, [gameData?.homeTeam?.id, gameData?.awayTeam?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // BK-79: show a dismissible toast when any background data fetch fails
