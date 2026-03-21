@@ -1094,22 +1094,6 @@ function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitch
               );
             })}
           </tbody>
-          {totals && (
-            <tfoot>
-              <tr className="lineup-totals-row">
-                <td colSpan={17} className="totals-label">LINEUP vs. PITCHER</td>
-                {/* BvP totals */}
-                <td className="totals-stat">{totals.pa}</td>
-                <td className="totals-stat">{totals.ab}</td>
-                <td className="totals-stat">{totals.h}</td>
-                <td className="totals-stat">{totals.avg}</td>
-                <td className="totals-stat">{totals.woba}</td>
-                <td className="totals-stat">{totals.hr}</td>
-                <td className="totals-stat">{totals.bb}</td>
-                <td className="totals-stat">{totals.so}</td>
-              </tr>
-            </tfoot>
-          )}
         </table>
       </div>
 
