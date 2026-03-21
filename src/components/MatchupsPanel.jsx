@@ -859,7 +859,7 @@ function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitch
                         loading="lazy"
                       />
                       <div className="player-name-info">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
                           <span style={{ whiteSpace: 'nowrap' }}>{player.name}</span>
                           {player.jerseyNumber && (
                             <span className="jersey-number">#{player.jerseyNumber}</span>
@@ -911,9 +911,9 @@ function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitch
                             }}
                             title="AI broadcast insights"
                           >✦ AI</button>
+                          <MilestoneBadges milestones={(milestonesById || {})[player.id]} />
+                          <StreakBadges activeStreaks={streak.activeStreaks} />
                         </div>
-                        <MilestoneBadges milestones={(milestonesById || {})[player.id]} />
-                        <StreakBadges activeStreaks={streak.activeStreaks} />
                       </div>
                     </div>
                   </td>

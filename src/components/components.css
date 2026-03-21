@@ -331,8 +331,6 @@
 }
 .player-name-info {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 .jersey-number {
   font-size: 10px;
@@ -380,7 +378,6 @@
   padding: 1px 5px;
   white-space: nowrap;
   cursor: default;
-  margin-top: 2px;
 }
 .streak-hit,
 .streak-hr,
@@ -2130,6 +2127,11 @@
 .ph-btn:hover            { background: rgba(96, 165, 250, 0.22); }
 .ph-btn--active          { display: block !important; background: rgba(96, 165, 250, 0.28); border-color: var(--accent); }
 .matchup-tbl tr:hover .ph-btn { display: block; }
+
+/* Fixed row height so both lineup panels stay aligned */
+.matchup-tbl tbody tr:not(.bvp-subhead):not(.ph-picker-row):not(.spray-row):not(.zone-row):not(.insights-row):not(.highlights-row):not(.lineup-totals-row) {
+  height: 46px;
+}
 
 /* Lineup totals footer row */
 .lineup-totals-row {
