@@ -2023,12 +2023,17 @@
 
 .splits-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   gap: 12px;
 }
 
 .split-card {
   transition: border-color 0.2s;
+  overflow: hidden;
+}
+.split-stat-table th,
+.split-stat-table td {
+  padding: 5px 8px;
 }
 .split-card.highlighted {
   border-color: var(--accent);

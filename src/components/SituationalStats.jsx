@@ -416,10 +416,10 @@ function SplitCard({ title, highlighted, rows }) {
   return (
     <div className={`card split-card ${highlighted ? 'highlighted' : ''}`}>
       <div className="section-title" style={{ marginBottom: 8 }}>{title}</div>
-      <table className="stat-table" style={{ fontSize: 12 }}>
+      <table className="stat-table split-stat-table" style={{ fontSize: 12 }}>
         <thead>
           <tr>
-            <th style={{ minWidth: 120, textAlign: 'left' }}>Situation</th>
+            <th style={{ textAlign: 'left' }}>Situation</th>
             <th style={{ textAlign: 'right' }}>PA</th>
             <th style={{ textAlign: 'right' }}>AVG</th>
             <th style={{ textAlign: 'right' }}>OBP</th>
