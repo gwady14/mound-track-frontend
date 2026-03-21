@@ -535,6 +535,11 @@ export default function App() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
           {gameData && (
             <>
+              {offlineReady && (
+                <span className="offline-ready-badge" title="All pitcher data cached — app works without internet">
+                  ✓ Offline Ready
+                </span>
+              )}
               {saveMsg && (
                 <span className={`save-flash ${saveMsg === 'Saved!' ? 'save-flash-ok' : 'save-flash-err'}`}>
                   {saveMsg}
@@ -668,11 +673,6 @@ export default function App() {
                   {t.label}
                 </button>
               ))}
-              {offlineReady && (
-                <span className="offline-ready-badge" title="All pitcher data cached — app works without internet">
-                  ✓ Offline Ready
-                </span>
-              )}
             </nav>
 
             <div className="tab-content">
