@@ -205,7 +205,7 @@ export default function SituationalStats({ batter, gameState, statsById }) {
               <div className="season-line">
               {seasonStats._season && seasonStats._season < new Date().getFullYear() && (
                 <span style={{ fontSize: 10, color: 'var(--text-dim)', alignSelf: 'center', marginRight: 4 }}>
-                  {seasonStats._season}
+                  {seasonStats._season} Stats
                 </span>
               )}
                 <StatPill label="AVG"  value={seasonStats.mlb.avg}     fmt={(v) => v ? v.toString().replace(/^0/, '') : '—'} />
