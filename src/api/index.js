@@ -267,13 +267,15 @@ export async function getPitcherArsenalSplitsCached(pitcherId) {
   }
 }
 
-/** Fetch bullpen panel data for a team; caches 1hr; falls back to cache offline. */
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours for everything
+
+/** Fetch bullpen panel data for a team; caches 24hr; falls back to cache offline. */
 export async function getBullpenCached(teamId, season) {
   const key = `cache:bullpen:${teamId}:${season ?? 'cur'}`;
   const url = `/bullpen/${teamId}${season ? `?season=${season}` : ''}`;
   try {
     const data = await get(url);
-    cacheSet(key, data, 60 * 60 * 1000); // 1 hour
+    cacheSet(key, data, CACHE_TTL);
     return data;
   } catch {
     const cached = cacheGet(key);
@@ -282,9 +284,9 @@ export async function getBullpenCached(teamId, season) {
   }
 }
 
-const BATTER_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const BATTER_TTL = CACHE_TTL;
 
-function makeCached(key, fetcher, ttl = BATTER_TTL) {
+function makeCached(key, fetcher, ttl = CACHE_TTL) {
   return async (...args) => {
     const k = typeof key === 'function' ? key(...args) : key;
     try {
@@ -305,7 +307,7 @@ export const getSprayChartCached      = makeCached(id => `cache:spray:${id}`,   
 export const getZonesCached           = makeCached(id => `cache:zones:${id}`,          id => get(`/zones/${id}`));
 export const getMilestonesCached      = makeCached(id => `cache:milestones:${id}`,     id => get(`/milestones/${id}`));
 export const getSituationalCached     = makeCached(id => `cache:situational:${id}`,    id => get(`/situational/${id}`));
-export const getPitcherFatigueCached  = makeCached(id => `cache:fatigue:${id}`,        id => get(`/pitcher-fatigue/${id}`), 60 * 60 * 1000);
+export const getPitcherFatigueCached  = makeCached(id => `cache:fatigue:${id}`,        id => get(`/pitcher-fatigue/${id}`));
 
 /** BvP bulk matchups; key is pitcherId + sorted batter IDs; caches 24hr. */
 export async function getBulkMatchupsCached(batters, pitcherId) {
