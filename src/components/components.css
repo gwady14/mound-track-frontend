@@ -3666,6 +3666,16 @@
   opacity: 0.5;
 }
 
+/* BK-89: substitute rows indented under their original player */
+.bs-row-sub td {
+  color: var(--text-dim);
+  font-size: 0.88em;
+}
+.bs-sub-arrow {
+  opacity: 0.45;
+  font-size: 0.85em;
+}
+
 .bs-totals-row td {
   font-weight: 700;
   border-top: 1.5px solid var(--border);

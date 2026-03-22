@@ -15,25 +15,51 @@ import React from 'react';
 
 // ── Batting stat derivation ─────────────────────────────────────────────────
 
-function buildBattingLines(paLog, runnerEvents, side, lineup) {
-  // Build ordered list from lineup (preserves batting order), then add any
-  // pinch hitters / subs who appear in paLog but aren't in current lineup.
-  const order = [];
+function buildBattingLines(paLog, runnerEvents, side, lineup, subsLog = []) {
+  // BK-89: Build ordered list that preserves batting order by slot and indents
+  // substitutes directly under the original player they replaced.
+  // subsLog entries: { side, slotIdx, outPlayer, inPlayer } in chronological order.
+  const sideSubsLog = (subsLog || []).filter(s => s.side === side);
+
+  const order = []; // { id, name, depth: 0=original, 1+=sub }
   const seen  = new Set();
 
-  // Start with lineup order
-  for (const p of (lineup || [])) {
-    if (p && !seen.has(p.id)) {
-      order.push({ id: p.id, name: p.name });
-      seen.add(p.id);
+  for (let slotIdx = 0; slotIdx < (lineup || []).length; slotIdx++) {
+    const current = lineup[slotIdx];
+    if (!current) continue;
+
+    // All substitution entries for this slot, in the order they occurred
+    const slotSubs = sideSubsLog.filter(s => s.slotIdx === slotIdx);
+
+    if (slotSubs.length === 0) {
+      // No subs — just the starter
+      if (!seen.has(current.id)) {
+        order.push({ id: current.id, name: current.name, depth: 0 });
+        seen.add(current.id);
+      }
+    } else {
+      // Original player is the outPlayer of the first sub
+      const original = slotSubs[0].outPlayer;
+      if (original && !seen.has(original.id)) {
+        order.push({ id: original.id, name: original.name, depth: 0 });
+        seen.add(original.id);
+      }
+      // Each subsequent substitute, indented by depth
+      for (let i = 0; i < slotSubs.length; i++) {
+        const sub = slotSubs[i].inPlayer;
+        if (sub && !seen.has(sub.id)) {
+          order.push({ id: sub.id, name: sub.name, depth: i + 1 });
+          seen.add(sub.id);
+        }
+      }
     }
   }
 
-  // Add any batter from paLog not in lineup (substitutions)
+  // Safety net: add any paLog batter not yet accounted for (e.g. legacy games)
   const sidePAs = paLog.filter(p => p.side === side);
   for (const pa of sidePAs) {
     if (!seen.has(pa.batterId)) {
-      order.push({ id: pa.batterId, name: pa.batterName });
+      order.push({ id: pa.batterId, name: pa.batterName, depth: 1 });
       seen.add(pa.batterId);
     }
   }
@@ -41,11 +67,11 @@ function buildBattingLines(paLog, runnerEvents, side, lineup) {
   // Runner events for this side (SB, CS, etc.)
   const sideRunnerEvents = runnerEvents.filter(e => e.side === side);
 
-  return order.map(({ id, name }) => {
+  return order.map(({ id, name, depth }) => {
     const pas = sidePAs.filter(p => p.batterId === id);
     if (pas.length === 0) {
       // Batter in lineup but hasn't batted yet
-      return { id, name, ab: 0, r: 0, h: 0, d: 0, t: 0, hr: 0, rbi: 0, bb: 0, hbp: 0, k: 0, sf: 0, sh: 0, sb: 0, cs: 0, hasPAs: false };
+      return { id, name, depth, ab: 0, r: 0, h: 0, d: 0, t: 0, hr: 0, rbi: 0, bb: 0, hbp: 0, k: 0, sf: 0, sh: 0, sb: 0, cs: 0, hasPAs: false };
     }
 
     const ab  = pas.filter(p => p.isAB).length;
@@ -66,8 +92,6 @@ function buildBattingLines(paLog, runnerEvents, side, lineup) {
       e => e.runnerId === id && e.toBase === 3 && !['cs','po','out-play','rundown','out-other'].includes(e.type)
     ).length;
     const runsFromHR = pas.filter(p => p.isHR).length;
-    // Also count runs scored via PA outcomes (runner scoring on plays)
-    // The paLog tracks runs scored on the play but not who scored.
     // We approximate: a batter's runs = HR + runner-event scores to home
     const r = runsFromHR + runsFromRunnerEvents;
 
@@ -76,7 +100,7 @@ function buildBattingLines(paLog, runnerEvents, side, lineup) {
     const cs = sideRunnerEvents.filter(e => e.runnerId === id && e.type === 'cs').length;
 
     return {
-      id, name, ab, r, h, d, t, hr, rbi, bb, hbp, k, sf, sh, sb, cs,
+      id, name, depth, ab, r, h, d, t, hr, rbi, bb, hbp, k, sf, sh, sb, cs,
       hasPAs: true,
     };
   }).filter(b => b.hasPAs || (lineup || []).some(p => p?.id === b.id));
@@ -217,24 +241,32 @@ function buildPitchingLines(paLog, pitchingTeamSide, pitchCounts, runnerEvents =
     map[pid].entries.push(pa);
   }
 
-  // Attribute base-path runner outs to the pitcher who was active at that seq.
-  // Uses the most recent PA entry with seq ≤ runner-out seq; falls back to the
-  // first PA after the event if nothing precedes it (e.g. pickoff before any PA).
+  // BK-83: Attribute base-path runner outs to the pitcher on the mound at that moment.
+  // Runner events now carry pitcherId directly (set at time of out in handleBaseAction).
+  // Prefer that field; fall back to seq-based PA lookup for legacy events without it.
   const extraOuts = {};
   const runnerOuts = runnerEvents.filter(
     e => e.side === battingSide && PITCHER_RUNNER_OUT_TYPES.has(e.type)
   );
   for (const ro of runnerOuts) {
-    let best = null;
-    for (const pa of pas) {
-      if ((pa.seq ?? 0) <= (ro.seq ?? 0)) best = pa;
+    let pid;
+    if (ro.pitcherId) {
+      // BK-83: use the pitcher recorded on the event — correct even before first batter faced
+      pid = ro.pitcherId;
+    } else {
+      // Legacy fallback: find the most recent PA with seq ≤ this event
+      let best = null;
+      for (const pa of pas) {
+        if ((pa.seq ?? 0) <= (ro.seq ?? 0)) best = pa;
+      }
+      if (!best) best = pas.find(pa => (pa.seq ?? 0) > (ro.seq ?? 0));
+      pid = best?.pitcherId ?? '__unknown__';
     }
-    if (!best) best = pas.find(pa => (pa.seq ?? 0) > (ro.seq ?? 0));
-    const pid = best?.pitcherId ?? '__unknown__';
     extraOuts[pid] = (extraOuts[pid] || 0) + 1;
-    // Ensure the pitcher exists in map even if they had no PA (rare edge case)
-    if (!map[pid] && best) {
-      map[pid] = { id: pid, name: best.pitcherName || '—', entries: [] };
+    // Ensure pitcher exists in map (may have no PA if out occurred before first batter)
+    if (!map[pid]) {
+      const name = ro.pitcherName || pas.find(p => p.pitcherId === pid)?.pitcherName || '—';
+      map[pid] = { id: pid, name, entries: [] };
       order.push(pid);
     }
   }
@@ -372,8 +404,12 @@ function BattingTable({ lines, teamAbbr }) {
           {lines.map((b, i) => {
             const avg = b.ab > 0 ? (b.h / b.ab).toFixed(3).replace(/^0/, '') : '—';
             return (
-              <tr key={b.id || i} className={!b.hasPAs ? 'bs-row-dim' : ''}>
-                <td className="bs-name-col">{b.name}</td>
+              <tr key={b.id || i} className={[!b.hasPAs ? 'bs-row-dim' : '', b.depth > 0 ? 'bs-row-sub' : ''].filter(Boolean).join(' ')}>
+                <td className="bs-name-col">
+                  {/* BK-89: indent substitutes under the player they replaced */}
+                  {b.depth > 0 && <span className="bs-sub-arrow" style={{ paddingLeft: b.depth * 10 }}>↳ </span>}
+                  {b.name}
+                </td>
                 <td>{b.ab || '—'}</td>
                 <td>{b.r || '—'}</td>
                 <td>{b.h || '—'}</td>
@@ -469,6 +505,7 @@ export default function BoxScore({ gameData, gameState }) {
   const {
     homeTeam, awayTeam,
     homeLineup, awayLineup,
+    subsLog,
   } = gameData;
   const {
     score, inningScores = [], paLog = [], runnerEvents = [],
@@ -478,9 +515,9 @@ export default function BoxScore({ gameData, gameState }) {
   const log = paLog || [];
   const runners = runnerEvents || [];
 
-  // Batting lines
-  const awayBatting = buildBattingLines(log, runners, 'away', awayLineup);
-  const homeBatting = buildBattingLines(log, runners, 'home', homeLineup);
+  // Batting lines — BK-89: pass subsLog so substitutes are indented under their slot
+  const awayBatting = buildBattingLines(log, runners, 'away', awayLineup, subsLog);
+  const homeBatting = buildBattingLines(log, runners, 'home', homeLineup, subsLog);
 
   // Pitching lines
   const awayPitching = buildPitchingLines(log, 'away', { awayPitchCount }, runners);

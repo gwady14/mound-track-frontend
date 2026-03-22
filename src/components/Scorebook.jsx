@@ -780,6 +780,10 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
     if (key === 'foul') { cancelBIP(); addFoul(); return; }
 
     if (bipContact === 'bu' && key === 'out') {
+      // BK-50: bunt can turn into a DP when runners are on and outs < 2
+      if (bases.some(Boolean) && outs < 2) {
+        setBipFlagKey('out'); setBipStep('flag'); return;
+      }
       goToNotation('sacbunt'); return;
     }
 
@@ -1101,15 +1105,16 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           ? (gameData.currentHomePitcher || gameData.homePitcher)
           : (gameData.currentAwayPitcher || gameData.awayPitcher);
         newRunnerEvents.push({
-          type:       reason,
-          runnerId:   runner?.id   || null,
-          runnerName: runner?.name || '?',
-          fromBase:   baseIdx,
-          toBase:     null,
-          inning:     prev.inning,
+          type:        reason,
+          runnerId:    runner?.id   || null,
+          runnerName:  runner?.name || '?',
+          fromBase:    baseIdx,
+          toBase:      null,
+          inning:      prev.inning,
           side,
-          pitcherId:  fieldingPitcher?.id ?? null,
-          seq:        newGameEventSeq++,
+          pitcherId:   fieldingPitcher?.id   ?? null,
+          pitcherName: fieldingPitcher?.name ?? null, // BK-83: store name for pre-PA attribution
+          seq:         newGameEventSeq++,
         });
 
         // ── 3 outs: flip inning (mirrors applyOutcome logic) ──────────────
@@ -1301,7 +1306,11 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             const outcomes = BIP_OUTCOMES[r.bipContact] || [];
             if (outcomes[idx]) r.selectBIPOutcome(outcomes[idx].key);
           } else if (r.bipStep === 'flag') {
-            if (idx === 0) {
+            // BK-50: bunt flag step has "Sac Bunt" / "Double Play" instead of "Regular Out" / SF/DP
+            if (r.bipContact === 'bu') {
+              if (idx === 0) r.confirmBIPFlag('sacbunt');
+              else           r.confirmBIPFlag('dp');
+            } else if (idx === 0) {
               r.confirmBIPFlag('out');
             } else {
               r.confirmBIPFlag(['fb','ld','pf'].includes(r.bipContact) ? 'sacfly' : 'dp');
@@ -1869,22 +1878,36 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             <div className="bip-layer">
               <button className="bip-back-btn" onClick={() => setBipStep('outcome')}>← Back <kbd className="pitch-pad-kbd">⌫</kbd></button>
               <div className="bip-label">
-                {['fb','ld','pf'].includes(bipContact) ? 'Sacrifice Fly?' : 'Double Play?'}
+                {bipContact === 'bu'
+                  ? 'Double Play?'
+                  : ['fb','ld','pf'].includes(bipContact) ? 'Sacrifice Fly?' : 'Double Play?'}
               </div>
-              <div className="bip-flag-row">
-                <button className={`bip-outcome-btn out-btn${menuFocusIdx === 0 ? ' kbd-focused' : ''}`} onClick={() => confirmBIPFlag('out')}>
-                  Regular Out
-                </button>
-                {['fb','ld','pf'].includes(bipContact) ? (
-                  <button className={`bip-outcome-btn neutral-btn${menuFocusIdx === 1 ? ' kbd-focused' : ''}`} onClick={() => confirmBIPFlag('sacfly')}>
-                    Sacrifice Fly ✓
+              {/* BK-50: bunt DP — "Sac Bunt" vs "Double Play" */}
+              {bipContact === 'bu' ? (
+                <div className="bip-flag-row">
+                  <button className={`bip-outcome-btn neutral-btn${menuFocusIdx === 0 ? ' kbd-focused' : ''}`} onClick={() => confirmBIPFlag('sacbunt')}>
+                    Sac Bunt ✓
                   </button>
-                ) : (
                   <button className={`bip-outcome-btn out-btn${menuFocusIdx === 1 ? ' kbd-focused' : ''}`} onClick={() => confirmBIPFlag('dp')}>
                     Double Play
                   </button>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="bip-flag-row">
+                  <button className={`bip-outcome-btn out-btn${menuFocusIdx === 0 ? ' kbd-focused' : ''}`} onClick={() => confirmBIPFlag('out')}>
+                    Regular Out
+                  </button>
+                  {['fb','ld','pf'].includes(bipContact) ? (
+                    <button className={`bip-outcome-btn neutral-btn${menuFocusIdx === 1 ? ' kbd-focused' : ''}`} onClick={() => confirmBIPFlag('sacfly')}>
+                      Sacrifice Fly ✓
+                    </button>
+                  ) : (
+                    <button className={`bip-outcome-btn out-btn${menuFocusIdx === 1 ? ' kbd-focused' : ''}`} onClick={() => confirmBIPFlag('dp')}>
+                      Double Play
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
