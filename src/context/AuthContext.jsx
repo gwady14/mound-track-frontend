@@ -20,16 +20,28 @@ export function AuthProvider({ children }) {
   const [token,   setToken]   = useState(() => localStorage.getItem(TOKEN_KEY));
   const [loading, setLoading] = useState(true);  // true while validating stored token
 
-  // Validate the stored token on mount
+  // Validate the stored token on mount.
+  // IMPORTANT: only clear the token if the server explicitly rejects it (401/403).
+  // A network failure (offline, timeout, Railway cold-start) must NOT clear the token —
+  // otherwise the user at the ballpark with no internet gets logged out on app open.
   useEffect(() => {
     if (!token) { setLoading(false); return; }
     fetch(`${AUTH_BASE}/me`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(u => setUser(u))
+      .then(r => {
+        if (r.ok) return r.json();
+        if (r.status === 401 || r.status === 403) {
+          // Server explicitly rejected the token — it's expired or invalid
+          localStorage.removeItem(TOKEN_KEY);
+          setToken(null);
+          return null;
+        }
+        // Any other HTTP error (5xx, etc.) — treat as a network hiccup, keep the token
+        return null;
+      })
+      .then(u => { if (u) setUser(u); })
       .catch(() => {
-        // Token expired or invalid — clear it
-        localStorage.removeItem(TOKEN_KEY);
-        setToken(null);
+        // Network failure (offline, DNS error, timeout) — keep the token and proceed.
+        // The user can still use the app with cached game data.
       })
       .finally(() => setLoading(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
