@@ -526,10 +526,16 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           case 'out':
           case 'k':
           case 'kl':   // strikeout looking — same mechanics as swinging K
+            newOuts++;
+            break;
+
           case 'sacbunt':
             newOuts++;
-            // BK-67: squeeze play — score runner on 3B if present (batter out at 1B)
+            // BK-67/BK-49: advance all runners one base (high → low to avoid collisions).
+            // Runner on 3B scores (squeeze or forced); 2B→3B; 1B→2B.
             if (newBases[2]) { scoreRun(side, newBases[2].earned !== false, newBases[2]); newBases[2] = null; }
+            if (newBases[1]) { newBases[2] = newBases[1]; newBases[1] = null; } // BK-49
+            if (newBases[0]) { newBases[1] = newBases[0]; newBases[0] = null; } // BK-49
             break;
 
           case 'fc': { // fielder's choice
@@ -633,10 +639,16 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             newOuts++;
             break;
 
-          case 'pfe': // pop foul error — batter reaches 1B on error, unearned
-          case 'fe':  // foul + error — same
-            newBases[0] = unearnedRunner;
+          case 'pfe': // pop foul error — batter reaches 1B unearned
+          case 'fe': { // foul + error — same
+            // BK-52: mirror the regular error case — batter reaches 1B unearned,
+            // existing runners advance one base by default (3B scores unearned).
+            // Scorer can adjust runner positions manually via the base runner buttons.
+            const feBases = [...newBases];
+            if (feBases[2]) scoreRun(side, false, feBases[2]); // 3B scores unearned
+            newBases = [unearnedRunner, feBases[0], feBases[1]]; // 1B→2B, 2B→3B, batter→1B
             break;
+          }
 
           default: break;
         }
@@ -780,10 +792,10 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
     if (key === 'foul') { cancelBIP(); addFoul(); return; }
 
     if (bipContact === 'bu' && key === 'out') {
-      // BK-50: bunt can turn into a DP when runners are on and outs < 2
-      if (bases.some(Boolean) && outs < 2) {
-        setBipFlagKey('out'); setBipStep('flag'); return;
-      }
+      // BK-70: no runners on base → can't be a sacrifice, record as regular out
+      if (!bases.some(Boolean)) { goToNotation('out'); return; }
+      // BK-50: runners present + outs < 2 → may be a DP, ask
+      if (outs < 2) { setBipFlagKey('out'); setBipStep('flag'); return; }
       goToNotation('sacbunt'); return;
     }
 
