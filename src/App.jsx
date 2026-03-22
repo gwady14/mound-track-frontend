@@ -105,7 +105,10 @@ export default function App() {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ gameData, gameState, tab }));
       } catch {
-        // Storage quota exceeded — silently skip
+        // BK-74: Storage quota exceeded — surface a visible warning
+        setFetchError('⚠ Auto-save failed — device storage is full. Export your game to avoid losing progress.');
+        if (fetchErrorTimerRef.current) clearTimeout(fetchErrorTimerRef.current);
+        fetchErrorTimerRef.current = setTimeout(() => setFetchError(null), 9000);
       }
     } else {
       localStorage.removeItem(STORAGE_KEY);
@@ -745,6 +748,7 @@ export default function App() {
                   onPinchHit={handlePinchHit}
                   onPitcherChange={handlePitcherChange}
                   onLineupReorder={handleLineupReorder}
+                  onEndGame={() => setShowSummary(true)}
                 />
               )}
               {tab === 'boxscore' && (

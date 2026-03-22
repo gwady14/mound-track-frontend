@@ -194,7 +194,7 @@ function PitchModalILP({ onSelect, focused }) {
 }
 
 
-export default function Scorebook({ gameData, gameState, setGameState, onPinchHit, onPitcherChange, onLineupReorder }) {
+export default function Scorebook({ gameData, gameState, setGameState, onPinchHit, onPitcherChange, onLineupReorder, onEndGame }) {
   const { homeTeam, awayTeam, homeLineup, awayLineup, homeRoster, awayRoster } = gameData;
   const [activePHSlot,    setActivePHSlot]    = useState(null);
   const [showPitcherSub,  setShowPitcherSub]  = useState(false);
@@ -225,6 +225,8 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
   const [bipSacflyBase,     setBipSacflyBase]     = useState(2);     // BK-47: 0|1|2 — which runner scored on sac fly (default 3B)
   const [tagUpActive,      setTagUpActive]      = useState(false); // BK-68: tag-up prompt after fly/LD outs
   const [tagUpRunners,     setTagUpRunners]     = useState([]);    // [{runner, fromBase, dest}]
+  const [extrasPrompt,     setExtrasPrompt]     = useState(false); // BK-57: tie at end of regulation
+  const prevInningRef = useRef({ inning: null, isTop: null });
   const [lineScoreOpen,     setLineScoreOpen]     = useState(true);  // collapsible line score
   const [scoreOverrideOpen, setScoreOverrideOpen] = useState(false); // collapsed by default
   const [moundExpanded, setMoundExpanded] = useState(true); // collapsible pitcher box
@@ -781,10 +783,11 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
       goToNotation('sacbunt'); return;
     }
 
-    if (['fb','ld','pf'].includes(bipContact) && key === 'out' && bases[2]) {
+    // BK-88: DP/SF flag step is impossible at 2 outs — skip straight to notation
+    if (['fb','ld','pf'].includes(bipContact) && key === 'out' && bases[2] && outs < 2) {
       setBipFlagKey('out'); setBipStep('flag'); return;
     }
-    if (bipContact === 'gb' && key === 'out' && bases[0]) {
+    if (bipContact === 'gb' && key === 'out' && bases[0] && outs < 2) {
       setBipFlagKey('out'); setBipStep('flag'); return;
     }
 
@@ -1380,6 +1383,22 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
   // H = hits by that team (side === team's batting side, isHit === true)
   // E = errors committed by that team's FIELDING — i.e. opponent is batting
   //     and outcome === 'error' (the fielding team let the batter reach)
+  // BK-57: Detect end-of-regulation tie — fires when inning/isTop changes
+  useEffect(() => {
+    const prev = prevInningRef.current;
+    // Detect the transition: was bottom of inning 9+ → now top of next inning, score still tied
+    if (
+      prev.isTop === false &&
+      prev.inning != null && prev.inning >= 9 &&
+      isTop === true &&
+      inning === prev.inning + 1 &&
+      score.home === score.away
+    ) {
+      setExtrasPrompt(true);
+    }
+    prevInningRef.current = { inning, isTop };
+  }, [inning, isTop]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Fetch fatigue data for pitchers as they appear ─────────────────────
   const homePitcherId = (gameData?.currentHomePitcher || gameData?.homePitcher)?.id;
   const awayPitcherId = (gameData?.currentAwayPitcher || gameData?.awayPitcher)?.id;
@@ -2694,6 +2713,37 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
         </div>
 
       </div>
+
+      {/* ── BK-57: End-of-regulation tie modal ───────────────────────────── */}
+      {extrasPrompt && (
+        <div className="pitch-modal-backdrop" onClick={() => setExtrasPrompt(false)}>
+          <div className="pitch-modal-sheet" onClick={e => e.stopPropagation()}
+            style={{ textAlign: 'center', gap: 12 }}>
+            <div className="pitch-modal-title" style={{ fontSize: 17, marginBottom: 4 }}>
+              Tied after {inning - 1} {inning - 1 === 1 ? 'inning' : 'innings'}
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text-dim)', marginBottom: 12 }}>
+              {score.away} – {score.home}
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ width: '100%' }}
+              onClick={() => setExtrasPrompt(false)}
+            >
+              ▶ Extra Innings
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ width: '100%', marginTop: 8 }}
+              onClick={() => { setExtrasPrompt(false); onEndGame?.(); }}
+            >
+              End Game (Tie)
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );
