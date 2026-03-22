@@ -139,6 +139,30 @@ export default function App() {
     const homeLineup = (gameData.homeLineup || []).filter(Boolean);
     const awayLineup = (gameData.awayLineup || []).filter(Boolean);
 
+    // Populate sprayById / zonesById incrementally — runs for both fresh lineup
+    // submissions and cloud-restored games (handleLineupSubmit is not called for restores).
+    allLineupBatters.forEach(b => {
+      getSprayChartCached(b.id)
+        .then(data => {
+          const entry = { dots: data?.dots ?? data, _season: data?._season };
+          setGameData(prev => prev ? { ...prev, sprayById: { ...prev.sprayById, [b.id]: entry } } : prev);
+        })
+        .catch(() => {
+          setGameData(prev => prev ? { ...prev, sprayById: { ...prev.sprayById, [b.id]: { dots: [], _season: null } } } : prev);
+        });
+    });
+
+    allLineupBatters.forEach(b => {
+      getZonesCached(b.id)
+        .then(data => {
+          const entry = { zones: data?.zones ?? data, _season: data?._season };
+          setGameData(prev => prev ? { ...prev, zonesById: { ...prev.zonesById, [b.id]: entry } } : prev);
+        })
+        .catch(() => {
+          setGameData(prev => prev ? { ...prev, zonesById: { ...prev.zonesById, [b.id]: { zones: [], _season: null } } } : prev);
+        });
+    });
+
     Promise.allSettled([
       // Bullpen panels
       getBullpenCached(gameData.homeTeam.id, homeTeamSeason),
@@ -150,12 +174,10 @@ export default function App() {
         getPitcherArsenalSplitsCached(p.id),
         getPitcherFatigueCached(p.id),
       ]),
-      // All lineup batter data (full set)
+      // All lineup batter data (full set — spray/zones handled above with setGameData)
       ...allLineupBatters.flatMap(b => [
         getBatterStatsCached(b.id),
         getBatterStreaksCached(b.id),
-        getSprayChartCached(b.id),
-        getZonesCached(b.id),
         getMilestonesCached(b.id),
         getSituationalCached(b.id),
       ]),
@@ -282,34 +304,6 @@ export default function App() {
           if (r.status === 'fulfilled') arsenalSplitsById[r.value.id] = r.value.splits;
         }
         setGameData(prev => prev ? { ...prev, arsenalSplitsById } : prev);
-      });
-
-      // ── Background: fetch spray chart data for every batter ───────────
-      // Update incrementally as each player's Statcast request completes
-      allBatters.forEach(b => {
-        getSprayChartCached(b.id)
-          .then(data => {
-            const entry = { dots: data?.dots ?? data, _season: data?._season };
-            setGameData(prev => prev ? { ...prev, sprayById: { ...prev.sprayById, [b.id]: entry } } : prev);
-          })
-          .catch(() => {
-            setGameData(prev => prev ? { ...prev, sprayById: { ...prev.sprayById, [b.id]: { dots: [], _season: null } } } : prev);
-          });
-      });
-
-      // ── Background: fetch hot/cold zone grid for every batter ───────────
-      // Reuses the same Statcast CSV cache as spray — no extra network cost
-      // once spray has been fetched; zones are computed server-side.
-      // Update incrementally as each player's data completes
-      allBatters.forEach(b => {
-        getZonesCached(b.id)
-          .then(data => {
-            const entry = { zones: data?.zones ?? data, _season: data?._season };
-            setGameData(prev => prev ? { ...prev, zonesById: { ...prev.zonesById, [b.id]: entry } } : prev);
-          })
-          .catch(() => {
-            setGameData(prev => prev ? { ...prev, zonesById: { ...prev.zonesById, [b.id]: { zones: [], _season: null } } } : prev);
-          });
       });
 
       // ── Background: fetch career milestones for every batter ──────────
