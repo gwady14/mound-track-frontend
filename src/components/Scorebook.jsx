@@ -2264,13 +2264,19 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             const gBB  = pitcherPAs.filter(pa => pa.isBB || pa.isHBP).length;
             const gK   = pitcherPAs.filter(pa => pa.isK).length;
             const gHR  = pitcherPAs.filter(pa => pa.isHR).length;
+            // Total balls and strikes thrown this outing (from pitch log)
+            const allPitches = pitcherPAs.flatMap(pa => pa.pitches || []);
+            const gTotalB  = allPitches.filter(p => p.result === 'B').length;
+            const gTotalS  = allPitches.filter(p => ['C','S','F'].includes(p.result)).length;
             const gameStatItems = [
-              { l: 'IP', v: gIP  },
-              { l: 'H',  v: gH   },
-              { l: 'ER', v: gER  },
-              { l: 'R',  v: gR   },
-              { l: 'BB', v: gBB  },
-              { l: 'K',  v: gK   },
+              { l: 'IP', v: gIP     },
+              { l: 'H',  v: gH      },
+              { l: 'ER', v: gER     },
+              { l: 'R',  v: gR      },
+              { l: 'BB', v: gBB     },
+              { l: 'K',  v: gK      },
+              { l: 'B',  v: gTotalB },
+              { l: 'S',  v: gTotalS },
               ...(gHR > 0 ? [{ l: 'HR', v: gHR }] : []),
             ];
 
@@ -2339,8 +2345,6 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                     {oppPitcher.throwHand && <span className="hand-badge">{oppPitcher.throwHand}HP</span>}
                     <span className="sb-compact-sep" />
                     <span className="sb-compact-pc">{oppPitchCount} PC</span>
-                    <span className="sb-compact-sep" />
-                    <span className="sb-compact-pc">{balls}–{strikes}</span>
                     {liveBand && <span className="sb-compact-fatigue">{BAND_DOT[liveBand]}</span>}
                     {remaining != null && <span className="sb-compact-remaining">~{remaining} left</span>}
                     {pArsenal.length > 0 && (
@@ -2385,12 +2389,6 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                   <div className="sb-pitch-count">
                     <span className="sb-pitch-count-num">{oppPitchCount}</span>
                     <span className="sb-pitch-count-lbl">PC</span>
-                  </div>
-
-                  {/* Current at-bat count */}
-                  <div className="sb-pitch-count">
-                    <span className="sb-pitch-count-num">{balls}–{strikes}</span>
-                    <span className="sb-pitch-count-lbl">Count</span>
                   </div>
 
                   {/* Fatigue badge — live rolling 7-day workload (prior + today's pitches) */}
