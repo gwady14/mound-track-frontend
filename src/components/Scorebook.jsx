@@ -2339,6 +2339,8 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                     {oppPitcher.throwHand && <span className="hand-badge">{oppPitcher.throwHand}HP</span>}
                     <span className="sb-compact-sep" />
                     <span className="sb-compact-pc">{oppPitchCount} PC</span>
+                    <span className="sb-compact-sep" />
+                    <span className="sb-compact-pc">{balls}–{strikes}</span>
                     {liveBand && <span className="sb-compact-fatigue">{BAND_DOT[liveBand]}</span>}
                     {remaining != null && <span className="sb-compact-remaining">~{remaining} left</span>}
                     {pArsenal.length > 0 && (
@@ -2383,6 +2385,12 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                   <div className="sb-pitch-count">
                     <span className="sb-pitch-count-num">{oppPitchCount}</span>
                     <span className="sb-pitch-count-lbl">PC</span>
+                  </div>
+
+                  {/* Current at-bat count */}
+                  <div className="sb-pitch-count">
+                    <span className="sb-pitch-count-num">{balls}–{strikes}</span>
+                    <span className="sb-pitch-count-lbl">Count</span>
                   </div>
 
                   {/* Fatigue badge — live rolling 7-day workload (prior + today's pitches) */}
