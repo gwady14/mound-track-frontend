@@ -2264,10 +2264,15 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             const gBB  = pitcherPAs.filter(pa => pa.isBB || pa.isHBP).length;
             const gK   = pitcherPAs.filter(pa => pa.isK).length;
             const gHR  = pitcherPAs.filter(pa => pa.isHR).length;
-            // Total balls and strikes thrown this outing (from pitch log)
-            const allPitches = pitcherPAs.flatMap(pa => pa.pitches || []);
+            // Total balls and strikes thrown this outing (from pitch log).
+            // Include currentPAPitches so the live at-bat counts immediately —
+            // completed PAs are in paLog; the in-progress PA is in currentPAPitches.
+            const allPitches = [
+              ...pitcherPAs.flatMap(pa => pa.pitches || []),
+              ...(gameState.currentPAPitches || []),
+            ];
             const gTotalB  = allPitches.filter(p => p.result === 'B').length;
-            const gTotalS  = allPitches.filter(p => ['C','S','F'].includes(p.result)).length;
+            const gTotalS  = allPitches.filter(p => ['C','S','F','P'].includes(p.result)).length;
             const gameStatItems = [
               { l: 'IP', v: gIP  },
               { l: 'H',  v: gH   },
