@@ -2269,14 +2269,12 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             const gTotalB  = allPitches.filter(p => p.result === 'B').length;
             const gTotalS  = allPitches.filter(p => ['C','S','F'].includes(p.result)).length;
             const gameStatItems = [
-              { l: 'IP', v: gIP     },
-              { l: 'H',  v: gH      },
-              { l: 'ER', v: gER     },
-              { l: 'R',  v: gR      },
-              { l: 'BB', v: gBB     },
-              { l: 'K',  v: gK      },
-              { l: 'B',  v: gTotalB },
-              { l: 'S',  v: gTotalS },
+              { l: 'IP', v: gIP  },
+              { l: 'H',  v: gH   },
+              { l: 'ER', v: gER  },
+              { l: 'R',  v: gR   },
+              { l: 'BB', v: gBB  },
+              { l: 'K',  v: gK   },
               ...(gHR > 0 ? [{ l: 'HR', v: gHR }] : []),
             ];
 
@@ -2385,10 +2383,14 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                       ))}
                     </div>
                   </div>
-                  {/* Pitch count — prominent badge for broadcast */}
+                  {/* Pitch count + B/S totals badge group */}
                   <div className="sb-pitch-count">
                     <span className="sb-pitch-count-num">{oppPitchCount}</span>
                     <span className="sb-pitch-count-lbl">PC</span>
+                  </div>
+                  <div className="sb-pitch-count">
+                    <span className="sb-pitch-count-num" style={{ fontSize: 14 }}>{gTotalB}B · {gTotalS}S</span>
+                    <span className="sb-pitch-count-lbl">Balls · Strikes</span>
                   </div>
 
                   {/* Fatigue badge — live rolling 7-day workload (prior + today's pitches) */}
