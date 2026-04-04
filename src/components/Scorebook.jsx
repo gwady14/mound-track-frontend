@@ -164,6 +164,19 @@ const CATEGORY_META = {
   today:     { label: 'Today',     cls: 'today'      },
 };
 
+// ── Extra innings: build the automatic runner-on-2B object ──────────────────
+// Returns the player who bats immediately before `nextBatterIdx` in the lineup.
+function makeGhostRunner(lineup, nextBatterIdx) {
+  if (!lineup?.length) return null;
+  const ghostIdx = (nextBatterIdx - 1 + lineup.length) % lineup.length;
+  const p = lineup[ghostIdx];
+  return p ? {
+    id: p.id, name: p.name, jerseyNumber: p.jerseyNumber,
+    earned: false, allowedByPitcherId: null, allowedByPitcherName: null,
+    isGhostRunner: true,
+  } : null;
+}
+
 // ── Format a base runner for SVG diamond label — jersey number preferred.
 function runnerLabel(runner) {
   if (!runner) return '';
@@ -226,6 +239,8 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
   const [tagUpActive,      setTagUpActive]      = useState(false); // BK-68: tag-up prompt after fly/LD outs
   const [tagUpRunners,     setTagUpRunners]     = useState([]);    // [{runner, fromBase, dest}]
   const [extrasPrompt,     setExtrasPrompt]     = useState(false); // BK-57: tie at end of regulation
+  const [ghostRunnerEnabled, setGhostRunnerEnabled] = useState(null); // null=not asked, true/false=decided
+  const ghostRunnerRef = useRef(null); // always-current ref for use inside useCallback/setGameState
   const prevInningRef = useRef({ inning: null, isTop: null });
   const [lineScoreOpen,     setLineScoreOpen]     = useState(true);  // collapsible line score
   const [scoreOverrideOpen, setScoreOverrideOpen] = useState(false); // collapsed by default
@@ -731,6 +746,14 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             }
           }
         }
+
+        // Extra innings automatic runner on 2B
+        if (ghostRunnerRef.current === true && newInning > 9) {
+          const battingLineup = newIsTop ? awayLineup : homeLineup;
+          const nextBatterIdx = newIsTop ? newAwayBatterIdx : newHomeBatterIdx;
+          const ghost = makeGhostRunner(battingLineup, nextBatterIdx);
+          if (ghost) newBases[1] = ghost;
+        }
       }
 
       return {
@@ -1193,6 +1216,13 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
       const prevHome = inningScores.slice(0, inning - 1).reduce((s, r) => s + (r.home ?? 0), 0);
       newInningScores[inning - 1].home = score.home - prevHome;
     }
+    // Extra innings automatic runner on 2B
+    if (ghostRunnerRef.current === true && newInning > 9) {
+      const battingLineup = newIsTop ? awayLineup : homeLineup;
+      const nextBatterIdx = newIsTop ? awayBatterIdx : homeBatterIdx;
+      const ghost = makeGhostRunner(battingLineup, nextBatterIdx);
+      if (ghost) newBases[1] = ghost;
+    }
     update({
       outs: 0, balls: 0, strikes: 0,
       bases: newBases, isTop: newIsTop,
@@ -1419,6 +1449,9 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
     }
     prevInningRef.current = { inning, isTop };
   }, [inning, isTop]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep ghostRunnerRef in sync so applyOutcome/endHalfInning always see current value
+  useEffect(() => { ghostRunnerRef.current = ghostRunnerEnabled; }, [ghostRunnerEnabled]);
 
   // ── Fetch fatigue data for pitchers as they appear ─────────────────────
   const homePitcherId = (gameData?.currentHomePitcher || gameData?.homePitcher)?.id;
@@ -2763,35 +2796,85 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
       </div>
 
       {/* ── BK-57: End-of-regulation tie modal ───────────────────────────── */}
-      {extrasPrompt && (
-        <div className="pitch-modal-backdrop" onClick={() => setExtrasPrompt(false)}>
-          <div className="pitch-modal-sheet" onClick={e => e.stopPropagation()}
-            style={{ textAlign: 'center', gap: 12 }}>
-            <div className="pitch-modal-title" style={{ fontSize: 17, marginBottom: 4 }}>
-              Tied after {inning - 1} {inning - 1 === 1 ? 'inning' : 'innings'}
+      {extrasPrompt && (() => {
+        // Place ghost runner on 2B for the current half-inning immediately
+        const placeGhostNow = () => {
+          const lineup   = isTop ? awayLineup : homeLineup;
+          const nextIdx  = isTop ? awayBatterIdx : homeBatterIdx;
+          const ghost    = makeGhostRunner(lineup, nextIdx);
+          if (ghost) update({ bases: [null, ghost, null] });
+        };
+
+        return (
+          <div className="pitch-modal-backdrop" onClick={() => setExtrasPrompt(false)}>
+            <div className="pitch-modal-sheet" onClick={e => e.stopPropagation()}
+              style={{ textAlign: 'center', gap: 12 }}>
+              <div className="pitch-modal-title" style={{ fontSize: 17, marginBottom: 4 }}>
+                Tied after {inning - 1} {inning - 1 === 1 ? 'inning' : 'innings'}
+              </div>
+              <div style={{ fontSize: 14, color: 'var(--text-dim)', marginBottom: 12 }}>
+                {score.away} – {score.home}
+              </div>
+
+              {ghostRunnerEnabled === null ? (
+                /* First time only — ask about automatic runner rule */
+                <>
+                  <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 10 }}>
+                    Is the automatic runner on 2B rule in effect?
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ width: '100%' }}
+                    onClick={() => { setGhostRunnerEnabled(true); placeGhostNow(); setExtrasPrompt(false); }}
+                  >
+                    ▶ Yes — Extra Innings
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ width: '100%', marginTop: 8 }}
+                    onClick={() => { setGhostRunnerEnabled(false); setExtrasPrompt(false); }}
+                  >
+                    No — Extra Innings
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ width: '100%', marginTop: 8 }}
+                    onClick={() => { setExtrasPrompt(false); onEndGame?.(); }}
+                  >
+                    End Game (Tie)
+                  </button>
+                </>
+              ) : (
+                /* Already decided — just continue or end */
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ width: '100%' }}
+                    onClick={() => {
+                      if (ghostRunnerEnabled) placeGhostNow();
+                      setExtrasPrompt(false);
+                    }}
+                  >
+                    ▶ Extra Innings
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ width: '100%', marginTop: 8 }}
+                    onClick={() => { setExtrasPrompt(false); onEndGame?.(); }}
+                  >
+                    End Game (Tie)
+                  </button>
+                </>
+              )}
             </div>
-            <div style={{ fontSize: 14, color: 'var(--text-dim)', marginBottom: 12 }}>
-              {score.away} – {score.home}
-            </div>
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{ width: '100%' }}
-              onClick={() => setExtrasPrompt(false)}
-            >
-              ▶ Extra Innings
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ width: '100%', marginTop: 8 }}
-              onClick={() => { setExtrasPrompt(false); onEndGame?.(); }}
-            >
-              End Game (Tie)
-            </button>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
     </div>
   );
