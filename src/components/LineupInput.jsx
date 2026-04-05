@@ -107,12 +107,18 @@ export default function LineupInput({ onSubmit }) {
   // ── Auto-fill lineup with position players from roster ───────────────────
   const autoFill = (side) => {
     const roster = side === 'home' ? homeRoster : awayRoster;
-    // Pick non-pitchers in order: C, 1B, 2B, 3B, SS, LF, CF, RF, DH/OF
     const batters = roster
       .filter(p => p.position?.type !== 'Pitcher')
       .slice(0, 9);
-    const lineup    = Array(9).fill(null).map((_, i) => batters[i] || null);
-    const positions = Array(9).fill('').map((_, i) => batters[i]?.position?.abbreviation || '');
+    const lineup = Array(9).fill(null).map((_, i) => batters[i] || null);
+    // Assign each player's position only if it hasn't been used yet
+    const usedPositions = new Set();
+    const positions = lineup.map(p => {
+      const pos = p?.position?.abbreviation || '';
+      if (!pos || usedPositions.has(pos)) return '';
+      usedPositions.add(pos);
+      return pos;
+    });
     if (side === 'home') { setHomeLineup(lineup); setHomePositions(positions); }
     else                 { setAwayLineup(lineup); setAwayPositions(positions); }
   };
