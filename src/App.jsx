@@ -95,13 +95,13 @@ export default function App() {
   const [loadingGame,     setLoadingGame]     = useState(false);
   const [loadProgress,    setLoadProgress]    = useState(0);
   const [loadStep,        setLoadStep]        = useState('');
+  const [loadMatchup,     setLoadMatchup]     = useState('');
   const [loadError,       setLoadError]       = useState(null);
   const [gameState,       setGameState]       = useState(saved?.gameState ?? EMPTY_GAME);
   const [showSummary,     setShowSummary]     = useState(false);
   const [offlineReady,    setOfflineReady]    = useState(false);
   const [fetchError,      setFetchError]      = useState(null); // BK-79: background fetch failure toast
   const fetchErrorTimerRef = useRef(null);
-  const formDataRef = useRef(null);
 
   // Persist game state to localStorage whenever it changes
   useEffect(() => {
@@ -214,7 +214,6 @@ export default function App() {
     setLoadProgress(0);
     setLoadStep('');
     setLoadError(null);
-    formDataRef.current = formData;
 
     try {
       const {
@@ -237,6 +236,7 @@ export default function App() {
         setLoadProgress(Math.round((completed / totalFetches) * 90));
       };
 
+      setLoadMatchup(`${awayTeam?.name || ''} @ ${homeTeam?.name || ''}`);
       setLoadStep('Fetching player stats…');
       const [batterStats, pitcherStats] = await Promise.all([
         Promise.allSettled(allBatters.map(b => getBatterStatsCached(b.id).then(s => { tick(); return { id: b.id, ...s }; }))),
@@ -703,9 +703,7 @@ export default function App() {
           <div className="lineup-wrapper">
             {loadingGame && (
               <div className="loading-overlay">
-                <div className="load-team-names">
-                  {formDataRef.current?.awayTeam?.name || ''} @ {formDataRef.current?.homeTeam?.name || ''}
-                </div>
+                <div className="load-team-names">{loadMatchup}</div>
                 <div className="load-progress-track">
                   <div className="load-progress-fill" style={{ width: `${loadProgress}%` }} />
                 </div>
