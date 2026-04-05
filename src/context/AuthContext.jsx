@@ -66,15 +66,25 @@ export function AuthProvider({ children }) {
   }, [_persist]);
 
   const signIn = useCallback(async (email, password) => {
-    const res  = await fetch(`${AUTH_BASE}/signin`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ email, password }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Sign-in failed');
-    _persist(data.token, data.user);
-    return data.user;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000); // 20s timeout
+    try {
+      const res  = await fetch(`${AUTH_BASE}/signin`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, password }),
+        signal:  controller.signal,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sign-in failed');
+      _persist(data.token, data.user);
+      return data.user;
+    } catch (err) {
+      if (err.name === 'AbortError') throw new Error('Sign-in timed out. Please try again.');
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
   }, [_persist]);
 
   const signOut = useCallback(() => {
