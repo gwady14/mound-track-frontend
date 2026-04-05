@@ -93,12 +93,15 @@ export default function App() {
   const [tab,             setTab]             = useState(saved?.tab       ?? 'matchups');
   const [gameData,        setGameData]        = useState(saved?.gameData  ?? null);
   const [loadingGame,     setLoadingGame]     = useState(false);
+  const [loadProgress,    setLoadProgress]    = useState(0);
+  const [loadStep,        setLoadStep]        = useState('');
   const [loadError,       setLoadError]       = useState(null);
   const [gameState,       setGameState]       = useState(saved?.gameState ?? EMPTY_GAME);
   const [showSummary,     setShowSummary]     = useState(false);
   const [offlineReady,    setOfflineReady]    = useState(false);
   const [fetchError,      setFetchError]      = useState(null); // BK-79: background fetch failure toast
   const fetchErrorTimerRef = useRef(null);
+  const formDataRef = useRef(null);
 
   // Persist game state to localStorage whenever it changes
   useEffect(() => {
@@ -208,7 +211,10 @@ export default function App() {
   // ── Handle lineup form submission ─────────────────────────────────────────
   const handleLineupSubmit = useCallback(async (formData) => {
     setLoadingGame(true);
+    setLoadProgress(0);
+    setLoadStep('');
     setLoadError(null);
+    formDataRef.current = formData;
 
     try {
       const {
@@ -223,15 +229,25 @@ export default function App() {
       const allBatters  = [...awayLineup, ...homeLineup].filter(Boolean);
       const allPitchers = [awayPitcher, homePitcher].filter(Boolean);
 
+      // Progress tracking: batters + pitchers + 2 BvP calls = total blocking fetches
+      const totalFetches = allBatters.length + allPitchers.length + 2;
+      let completed = 0;
+      const tick = () => {
+        completed++;
+        setLoadProgress(Math.round((completed / totalFetches) * 90));
+      };
+
+      setLoadStep('Fetching player stats…');
       const [batterStats, pitcherStats] = await Promise.all([
-        Promise.allSettled(allBatters.map(b => getBatterStatsCached(b.id).then(s => ({ id: b.id, ...s })))),
-        Promise.allSettled(allPitchers.map(p => getPitcherStatsCached(p.id).then(s => ({ id: p.id, ...s })))),
+        Promise.allSettled(allBatters.map(b => getBatterStatsCached(b.id).then(s => { tick(); return { id: b.id, ...s }; }))),
+        Promise.allSettled(allPitchers.map(p => getPitcherStatsCached(p.id).then(s => { tick(); return { id: p.id, ...s }; }))),
       ]);
 
       // ── Fetch BvP matchups: away batters vs HOME pitcher, home batters vs AWAY pitcher ─
+      setLoadStep('Fetching matchup history…');
       const [awayBvPResult, homeBvPResult] = await Promise.allSettled([
-        homePitcher ? getBulkMatchupsCached(awayLineup.filter(Boolean), homePitcher.id) : Promise.resolve([]),
-        awayPitcher ? getBulkMatchupsCached(homeLineup.filter(Boolean), awayPitcher.id) : Promise.resolve([]),
+        homePitcher ? getBulkMatchupsCached(awayLineup.filter(Boolean), homePitcher.id).then(r => { tick(); return r; }) : Promise.resolve(tick() || []),
+        awayPitcher ? getBulkMatchupsCached(homeLineup.filter(Boolean), awayPitcher.id).then(r => { tick(); return r; }) : Promise.resolve(tick() || []),
       ]);
       const awayBvP = awayBvPResult.status === 'fulfilled' ? awayBvPResult.value : [];
       const homeBvP = homeBvPResult.status === 'fulfilled' ? homeBvPResult.value : [];
@@ -248,6 +264,9 @@ export default function App() {
       const bvpById = {};
       for (const r of awayBvP)  if (r.batterId) bvpById[`${r.batterId}_${homePitcher?.id}`]  = r;
       for (const r of homeBvP)  if (r.batterId) bvpById[`${r.batterId}_${awayPitcher?.id}`]  = r;
+
+      setLoadProgress(100);
+      setLoadStep('Ready!');
 
       // ── Render immediately with core stats, then fill in streaks ─────────
       // Streaks require one API call per batter (18 total) — loading them
@@ -684,8 +703,16 @@ export default function App() {
           <div className="lineup-wrapper">
             {loadingGame && (
               <div className="loading-overlay">
-                <div className="spinner" />
-                <span>Loading game data…</span>
+                <div className="load-team-names">
+                  {formDataRef.current?.awayTeam?.name || ''} @ {formDataRef.current?.homeTeam?.name || ''}
+                </div>
+                <div className="load-progress-track">
+                  <div className="load-progress-fill" style={{ width: `${loadProgress}%` }} />
+                </div>
+                <div className="load-progress-label">
+                  <span>{loadStep}</span>
+                  <span>{loadProgress}%</span>
+                </div>
               </div>
             )}
             {!loadingGame && (
