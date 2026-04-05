@@ -211,6 +211,8 @@ export default function GamePrepPanel({ gameData, streaksById = {}, milestonesBy
       const bio = bios[player.id];
       const pct = pcts[player.id];
 
+      const cardTeam = player.side; // 'home' or 'away'
+
       // Birthday check (use game date)
       if (player.birthDate) {
         const [byear, bmonth, bday] = player.birthDate.split('-').map(Number);
@@ -221,8 +223,9 @@ export default function GamePrepPanel({ gameData, streaksById = {}, milestonesBy
             id: id(`bday_${player.id}`),
             category: 'Birthday',
             icon: '🎂',
-            text: `${player.name} (${player.teamName}) turns ${age} today!`,
+            text: `${player.name} turns ${age} today!`,
             section: 'spotlights',
+            team: cardTeam,
             priority: 20,
           });
         }
@@ -238,6 +241,7 @@ export default function GamePrepPanel({ gameData, streaksById = {}, milestonesBy
               icon: '🔥',
               text: `${player.name}: ${s.games}-game ${s.label || s.type} streak`,
               section: 'spotlights',
+              team: cardTeam,
               priority: 15 + s.games,
             });
           }
@@ -253,6 +257,7 @@ export default function GamePrepPanel({ gameData, streaksById = {}, milestonesBy
             icon: '🎯',
             text: `${player.name}: ${m.remaining} ${m.stat} from ${m.milestone} career`,
             section: 'spotlights',
+            team: cardTeam,
             priority: 18,
           });
         }
@@ -281,6 +286,7 @@ export default function GamePrepPanel({ gameData, streaksById = {}, milestonesBy
             icon: '📡',
             text: `${player.name}: ${val}th percentile ${label} league-wide`,
             section: 'spotlights',
+            team: cardTeam,
             priority: 12 + Math.floor((val - 80) / 4),
           });
         }
@@ -310,6 +316,7 @@ export default function GamePrepPanel({ gameData, streaksById = {}, milestonesBy
             icon: '📋',
             text: `${player.name}: ${facts.join(' · ')}`,
             section: 'spotlights',
+            team: cardTeam,
             priority: 5,
           });
         }
@@ -364,9 +371,11 @@ export default function GamePrepPanel({ gameData, streaksById = {}, milestonesBy
   const visibleCards = allCards.filter(c => !dismissed.includes(c.id));
   const dismissedCards = allCards.filter(c => dismissed.includes(c.id));
 
-  const conditionCards  = visibleCards.filter(c => c.section === 'conditions').sort((a, b) => b.priority - a.priority);
-  const spotlightCards  = visibleCards.filter(c => c.section === 'spotlights').sort((a, b) => b.priority - a.priority);
-  const historyCards    = visibleCards.filter(c => c.section === 'history');
+  const conditionCards     = visibleCards.filter(c => c.section === 'conditions').sort((a, b) => b.priority - a.priority);
+  const awaySpotlightCards = visibleCards.filter(c => c.section === 'spotlights' && c.team === 'away').sort((a, b) => b.priority - a.priority);
+  const homeSpotlightCards = visibleCards.filter(c => c.section === 'spotlights' && c.team === 'home').sort((a, b) => b.priority - a.priority);
+  const spotlightCards     = visibleCards.filter(c => c.section === 'spotlights');
+  const historyCards       = visibleCards.filter(c => c.section === 'history');
 
   const renderCard = (card) => (
     <PrepCard
@@ -406,13 +415,38 @@ export default function GamePrepPanel({ gameData, streaksById = {}, milestonesBy
       {/* Player Spotlights */}
       <section>
         <div className="gameprep-section-title">Player Spotlights</div>
-        {spotlightCards.length > 0 ? (
-          <div className="gameprep-cards">
-            {spotlightCards.map(renderCard)}
-          </div>
-        ) : (
+        {spotlightCards.length === 0 ? (
           <div className="gameprep-empty">
             {loading ? 'Loading player data…' : 'No spotlight facts available.'}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+            {/* Away team */}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', marginBottom: 8 }}>
+                {awayTeam?.abbreviation || 'Away'}
+              </div>
+              {awaySpotlightCards.length > 0 ? (
+                <div className="gameprep-cards">
+                  {awaySpotlightCards.map(renderCard)}
+                </div>
+              ) : (
+                <div className="gameprep-empty" style={{ fontSize: 12 }}>No spotlights</div>
+              )}
+            </div>
+            {/* Home team */}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', marginBottom: 8 }}>
+                {homeTeam?.abbreviation || 'Home'}
+              </div>
+              {homeSpotlightCards.length > 0 ? (
+                <div className="gameprep-cards">
+                  {homeSpotlightCards.map(renderCard)}
+                </div>
+              ) : (
+                <div className="gameprep-empty" style={{ fontSize: 12 }}>No spotlights</div>
+              )}
+            </div>
           </div>
         )}
       </section>
