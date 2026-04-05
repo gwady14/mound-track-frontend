@@ -32,6 +32,7 @@ export default function LineupInput({ onSubmit }) {
   const [gameTime, setGameTime] = useState('19:05');
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [loadingRoster, setLoadingRoster] = useState({ home: false, away: false });
+  const [rosterError, setRosterError] = useState({ home: false, away: false });
   const [positionWarning, setPositionWarning] = useState('');
   const [duplicateError,  setDuplicateError]  = useState(''); // BK-75
   const [usingCache, setUsingCache] = useState(false); // BK-90
@@ -51,6 +52,7 @@ export default function LineupInput({ onSubmit }) {
   const fetchRoster = useCallback(async (teamId, side) => {
     if (!teamId) return;
     setLoadingRoster(prev => ({ ...prev, [side]: true }));
+    setRosterError(prev => ({ ...prev, [side]: false }));
     try {
       const { data: roster, fromCache } = await getRosterCached(teamId);
       if (fromCache) setUsingCache(true);
@@ -67,6 +69,7 @@ export default function LineupInput({ onSubmit }) {
       }
     } catch (err) {
       console.error('Roster fetch error:', err);
+      setRosterError(prev => ({ ...prev, [side]: true }));
     } finally {
       setLoadingRoster(prev => ({ ...prev, [side]: false }));
     }
@@ -287,6 +290,8 @@ export default function LineupInput({ onSubmit }) {
           onPitcherChange={(pid) => setPitcher('away', pid)}
           onAutoFill={() => autoFill('away')}
           loading={loadingRoster.away}
+          hasError={rosterError.away}
+          onRetry={() => fetchRoster(awayTeam, 'away')}
           pitchers={pitchersFor(awayRoster)}
         />
 
@@ -308,6 +313,8 @@ export default function LineupInput({ onSubmit }) {
           onPitcherChange={(pid) => setPitcher('home', pid)}
           onAutoFill={() => autoFill('home')}
           loading={loadingRoster.home}
+          hasError={rosterError.home}
+          onRetry={() => fetchRoster(homeTeam, 'home')}
           pitchers={pitchersFor(homeRoster)}
         />
       </div>
@@ -350,7 +357,7 @@ function TeamLineupCard({
   otherTeamId = '',
   roster, lineup, positions, pitcher,
   onLineupChange, onPositionChange, onPitcherChange, onAutoFill,
-  loading, pitchers,
+  loading, hasError, onRetry, pitchers,
 }) {
   const batters = roster.filter(p =>
     p.position?.type !== 'Pitcher' && p.position?.code !== '1'
@@ -468,6 +475,11 @@ function TeamLineupCard({
             </select>
           </div>
         </>
+      ) : hasError ? (
+        <div className="loading-state" style={{ height: 80, flexDirection: 'column', gap: 8 }}>
+          <span style={{ color: 'var(--poor)', fontSize: 13 }}>Failed to load roster</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onRetry}>Retry</button>
+        </div>
       ) : selectedTeamId ? (
         <div className="loading-state" style={{ height: 80 }}>No roster data available</div>
       ) : null}
