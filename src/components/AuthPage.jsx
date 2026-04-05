@@ -243,12 +243,7 @@ export default function AuthPage() {
 
         <p className="auth-switch">
           {mode === 'signin' ? (
-            <>
-              <button className="auth-switch-btn" onClick={() => switchMode('forgot')}>
-                Forgot password?
-              </button>
-
-            </>
+            null
           ) : mode === 'forgot' || mode === 'reset' ? (
             <button className="auth-switch-btn" onClick={() => switchMode('signin')}>
               Back to Sign In
