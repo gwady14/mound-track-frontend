@@ -566,8 +566,19 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                 if (newBases[i]) { newBases[i] = null; break; }
               }
             }
-            // Batter reaches 1B unless it's a DP
-            if (!isDP) newBases[0] = runner;
+            // Batter reaches 1B unless it's a DP.
+            // If a non-1B runner was retired (e.g. bases loaded, throw home),
+            // the 1B runner is still in newBases[0] and must be force-advanced.
+            if (!isDP) {
+              if (newBases[0]) {
+                if (newBases[1]) {
+                  if (newBases[2]) scoreRun(side, newBases[2].earned !== false, newBases[2]);
+                  newBases[2] = newBases[1];
+                }
+                newBases[1] = newBases[0];
+              }
+              newBases[0] = runner;
+            }
             break;
           }
 
@@ -644,6 +655,14 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
               // Batter reaches safely (e.g. two runners retired, batter not involved,
               // or batter reaches on a throwing error after one runner is out)
               newOuts = Math.min(newOuts + 1, 3);
+              // Force-advance any runner still on 1B before placing batter there
+              if (newBases[0]) {
+                if (newBases[1]) {
+                  if (newBases[2]) scoreRun(side, newBases[2].earned !== false, newBases[2]);
+                  newBases[2] = newBases[1];
+                }
+                newBases[1] = newBases[0];
+              }
               newBases[0] = runner; // batter reaches 1B
             }
             break;
@@ -1081,16 +1100,24 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
       let newScore  = { ...prev.score };
       const newInningScores = prev.inningScores.map(r => ({ ...r }));
       const newRunnerEvents = [...(prev.runnerEvents || [])];
+      const newPaLog = [...(prev.paLog || [])];
       const side = prev.isTop ? 'away' : 'home';
       let newGameEventSeq = Math.max(prev.gameEventSeq || 0, (prev.paLog?.length || 0) + (prev.runnerEvents?.length || 0));
 
-      const scoreRunner = () => {
+      const scoreRunner = (isRBIEligible = false) => {
         if (side === 'away') newScore.away++;
         else newScore.home++;
         const idx = prev.inning - 1; // BK-53: no cap — expand beyond 9th inning
         while (newInningScores.length <= idx) newInningScores.push({ home: null, away: null });
         if (side === 'away') newInningScores[idx].away = (newInningScores[idx].away || 0) + 1;
         else newInningScores[idx].home = (newInningScores[idx].home || 0) + 1;
+        // Credit RBI to the most recent PA for the batting side
+        if (isRBIEligible) {
+          const lastIdx = newPaLog.length - 1;
+          if (lastIdx >= 0 && newPaLog[lastIdx].side === side) {
+            newPaLog[lastIdx] = { ...newPaLog[lastIdx], rbi: (newPaLog[lastIdx].rbi || 0) + 1 };
+          }
+        }
       };
 
       if (action === 'do-advance') {
@@ -1101,7 +1128,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             if (!r) continue;
             newBases[b] = null;
             if (b === 2) {
-              scoreRunner();
+              scoreRunner(false); // wp/pb — never an RBI
             } else {
               newBases[b + 1] = r;
             }
@@ -1121,7 +1148,8 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           if (nextBase <= 2) {
             newBases[nextBase] = runner;
           } else {
-            scoreRunner(); // advancing from 3B scores
+            // advancing from 3B scores; credit RBI for 'on-play' and 'other' reasons
+            scoreRunner(reason === 'on-play' || reason === 'other');
           }
           newRunnerEvents.push({
             type:       reason,
@@ -1172,10 +1200,10 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           }
         }
       } else if (action === 'score') {
-        scoreRunner();
+        scoreRunner(true); // direct Score button — always an RBI
       }
 
-      return { ...prev, bases: newBases, outs: newOuts, isTop: newIsTop, inning: newInning, score: newScore, inningScores: newInningScores, runnerEvents: newRunnerEvents, gameEventSeq: newGameEventSeq, balls: newOuts === 0 ? 0 : prev.balls, strikes: newOuts === 0 ? 0 : prev.strikes };
+      return { ...prev, bases: newBases, outs: newOuts, isTop: newIsTop, inning: newInning, score: newScore, inningScores: newInningScores, runnerEvents: newRunnerEvents, paLog: newPaLog, gameEventSeq: newGameEventSeq, balls: newOuts === 0 ? 0 : prev.balls, strikes: newOuts === 0 ? 0 : prev.strikes };
     });
   };
 
@@ -1385,6 +1413,37 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
       // Digit keys: context-sensitive — contact layer, outcome layer, notation, or pitch pad
       const digit = e.key === '0' ? 0 : parseInt(e.key, 10);
       if (!isNaN(digit) && (digit === 0 || digit >= 1)) {
+        // 1–3: select runner by base number in runner-selection steps
+        if (digit >= 1 && digit <= 3) {
+          const baseIdx = digit - 1; // 1→1B(0), 2→2B(1), 3→3B(2)
+          if (r.bipStep === 'fc-runner') {
+            if (r.bases[baseIdx]) { e.preventDefault(); r.selectFCRunner(baseIdx); return; }
+            return;
+          }
+          if (r.bipStep === 'dp-runner') {
+            if (r.bases[baseIdx]) { e.preventDefault(); r.selectDPRunner(baseIdx); return; }
+            return;
+          }
+          if (r.bipStep === 'sacfly-runner') {
+            if (r.bases[baseIdx]) { e.preventDefault(); r.setBipSacflyBase(baseIdx); r.goToNotation('sacfly'); return; }
+            return;
+          }
+        }
+        // 1–2: select option in binary-choice steps (flag, fc-dp, dp-batter)
+        if (digit === 1 || digit === 2) {
+          if (r.bipStep === 'flag') {
+            e.preventDefault();
+            if (digit === 1) r.confirmBIPFlag(r.bipContact === 'bu' ? 'sacbunt' : 'out');
+            else             r.confirmBIPFlag(r.bipContact === 'bu' ? 'dp' : ['fb','ld','pf'].includes(r.bipContact) ? 'sacfly' : 'dp');
+            return;
+          }
+          if (r.bipStep === 'fc-dp') {
+            e.preventDefault(); r.confirmFCDP(digit === 2); return; // 1=No, 2=Yes DP
+          }
+          if (r.bipStep === 'dp-batter') {
+            e.preventDefault(); r.setBipDPBatterOut(digit === 1); r.goToNotation('dp'); return; // 1=Out, 2=Reaches
+          }
+        }
         // 1–9: add fielder position in notation step
         if (r.bipStep === 'notation' && digit >= 1 && digit <= 9) {
           e.preventDefault(); r.setBipNotation(n => [...n, digit]); return;
@@ -1415,12 +1474,16 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
         }
       }
       switch (e.key.toLowerCase()) {
-        case 'b': e.preventDefault(); r.addBall();             break;
-        case 'c': e.preventDefault(); r.addCalledStrike();     break;
-        case 's': e.preventDefault(); r.addSwingMiss();           break;
-        case 'f': e.preventDefault(); r.addFoul();               break;
-        case 'p': e.preventDefault(); r.setBipStep('contact');   break;
-        case 'o': e.preventDefault(); r.setPitchMenuOpen(true);  break;
+        case 'b': if (!r.bipStep) { e.preventDefault(); r.addBall(); }           break;
+        case 'c': if (!r.bipStep) { e.preventDefault(); r.addCalledStrike(); }   break;
+        case 's': if (!r.bipStep) { e.preventDefault(); r.addSwingMiss(); }      break;
+        case 'f': if (!r.bipStep) { e.preventDefault(); r.addFoul(); }           break;
+        case 'p': if (!r.bipStep) { e.preventDefault(); r.setBipStep('contact'); } break;
+        case 'o': if (!r.bipStep) { e.preventDefault(); r.setPitchMenuOpen(true); } break;
+        case 'u': // Unspecified runner in FC/DP runner-selection steps
+          if (r.bipStep === 'fc-runner') { e.preventDefault(); r.selectFCRunner(null); }
+          else if (r.bipStep === 'dp-runner') { e.preventDefault(); r.selectDPRunner(null); }
+          break;
       }
     };
     window.addEventListener('keydown', handler);
@@ -1931,24 +1994,24 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
               {bipContact === 'bu' ? (
                 <div className="bip-flag-row">
                   <button className={`bip-outcome-btn neutral-btn${menuFocusIdx === 0 ? ' kbd-focused' : ''}`} onClick={() => confirmBIPFlag('sacbunt')}>
-                    Sac Bunt ✓
+                    <span className="bip-kbd-hint">1</span>Sac Bunt ✓
                   </button>
                   <button className={`bip-outcome-btn out-btn${menuFocusIdx === 1 ? ' kbd-focused' : ''}`} onClick={() => confirmBIPFlag('dp')}>
-                    Double Play
+                    <span className="bip-kbd-hint">2</span>Double Play
                   </button>
                 </div>
               ) : (
                 <div className="bip-flag-row">
                   <button className={`bip-outcome-btn out-btn${menuFocusIdx === 0 ? ' kbd-focused' : ''}`} onClick={() => confirmBIPFlag('out')}>
-                    Regular Out
+                    <span className="bip-kbd-hint">1</span>Regular Out
                   </button>
                   {['fb','ld','pf'].includes(bipContact) ? (
                     <button className={`bip-outcome-btn neutral-btn${menuFocusIdx === 1 ? ' kbd-focused' : ''}`} onClick={() => confirmBIPFlag('sacfly')}>
-                      Sacrifice Fly ✓
+                      <span className="bip-kbd-hint">2</span>Sacrifice Fly ✓
                     </button>
                   ) : (
                     <button className={`bip-outcome-btn out-btn${menuFocusIdx === 1 ? ' kbd-focused' : ''}`} onClick={() => confirmBIPFlag('dp')}>
-                      Double Play
+                      <span className="bip-kbd-hint">2</span>Double Play
                     </button>
                   )}
                 </div>
@@ -1974,6 +2037,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                         className={`bip-flag-btn${menuFocusIdx === btnIdx ? ' kbd-focused' : ''}`}
                         onClick={() => selectDPRunner(baseIdx)}
                       >
+                        <span className="bip-kbd-hint">{baseIdx + 1}</span>
                         <span className="bip-fc-base">{BASE_LABELS[baseIdx]}</span>
                         <span className="bip-fc-name">{label}</span>
                       </button>
@@ -1983,7 +2047,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                     className={`bip-flag-btn neutral${menuFocusIdx === occupiedBases.length ? ' kbd-focused' : ''}`}
                     onClick={() => selectDPRunner(null)}
                   >
-                    Unspecified
+                    <span className="bip-kbd-hint">U</span>Unspecified
                   </button>
                 </div>
               </div>
@@ -2000,13 +2064,13 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                   className={`bip-outcome-btn out-btn${menuFocusIdx === 0 ? ' kbd-focused' : ''}`}
                   onClick={() => { setBipDPBatterOut(true);  goToNotation('dp'); }}
                 >
-                  Batter Out
+                  <span className="bip-kbd-hint">1</span>Batter Out
                 </button>
                 <button
                   className={`bip-outcome-btn neutral-btn${menuFocusIdx === 1 ? ' kbd-focused' : ''}`}
                   onClick={() => { setBipDPBatterOut(false); goToNotation('dp'); }}
                 >
-                  Reaches Safely
+                  <span className="bip-kbd-hint">2</span>Reaches Safely
                 </button>
               </div>
             </div>
@@ -2030,6 +2094,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                         className={`bip-flag-btn${menuFocusIdx === btnIdx ? ' kbd-focused' : ''}`}
                         onClick={() => { setBipSacflyBase(baseIdx); goToNotation('sacfly'); }}
                       >
+                        <span className="bip-kbd-hint">{baseIdx + 1}</span>
                         <span className="bip-fc-base">{BASE_LABELS[baseIdx]}</span>
                         <span className="bip-fc-name">{label}</span>
                       </button>
@@ -2058,6 +2123,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                         className={`bip-flag-btn${menuFocusIdx === btnIdx ? ' kbd-focused' : ''}`}
                         onClick={() => selectFCRunner(baseIdx)}
                       >
+                        <span className="bip-kbd-hint">{baseIdx + 1}</span>
                         <span className="bip-fc-base">{BASE_LABELS[baseIdx]}</span>
                         <span className="bip-fc-name">{label}</span>
                       </button>
@@ -2067,7 +2133,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                     className={`bip-flag-btn neutral${menuFocusIdx === occupiedBases.length ? ' kbd-focused' : ''}`}
                     onClick={() => selectFCRunner(null)}
                   >
-                    Unspecified
+                    <span className="bip-kbd-hint">U</span>Unspecified
                   </button>
                 </div>
               </div>
@@ -2087,13 +2153,13 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                     className={`bip-flag-btn${menuFocusIdx === 0 ? ' kbd-focused' : ''}`}
                     onClick={() => confirmFCDP(false)}
                   >
-                    No — 1 Out
+                    <span className="bip-kbd-hint">1</span>No — 1 Out
                   </button>
                   <button
                     className={`bip-flag-btn out-btn${menuFocusIdx === 1 ? ' kbd-focused' : ''}`}
                     onClick={() => confirmFCDP(true)}
                   >
-                    Yes — DP (2 Outs)
+                    <span className="bip-kbd-hint">2</span>Yes — DP (2 Outs)
                   </button>
                 </div>
               </div>
@@ -2427,7 +2493,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                     <span className="sb-pitch-count-lbl">PC</span>
                   </div>
                   <div className="sb-pitch-count">
-                    <span className="sb-pitch-count-num" style={{ fontSize: 14 }}>{gTotalB}B · {gTotalS}S</span>
+                    <span className="sb-pitch-count-num" style={{ fontSize: 14 }}>{gTotalB} · {gTotalS}</span>
                     <span className="sb-pitch-count-lbl">Balls · Strikes</span>
                   </div>
 

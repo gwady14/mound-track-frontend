@@ -186,6 +186,27 @@ function StreakBadges({ activeStreaks }) {
   );
 }
 
+// ── Birthday badge ────────────────────────────────────────────────────────
+function getBirthdayInfo(birthDate, asOf = null) {
+  if (!birthDate) return null;
+  const [year, month, day] = birthDate.split('-').map(Number);
+  const ref = asOf ? new Date(asOf + 'T12:00:00') : new Date();
+  if (ref.getMonth() + 1 !== month || ref.getDate() !== day) return null;
+  const age = ref.getFullYear() - year;
+  const formatted = new Date(year, month - 1, day)
+    .toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  return { formatted, age };
+}
+function BirthdayBadge({ birthDate, gameDate }) {
+  const info = getBirthdayInfo(birthDate, gameDate || null);
+  if (!info) return null;
+  return (
+    <span className="birthday-badge" title={`Born ${info.formatted} · Turns ${info.age} today`}>
+      🎂 Birthday
+    </span>
+  );
+}
+
 // ── BK-30: Player Highlights — Statcast extremes ─────────────────────────
 // Surfaces 2–3 extreme performance metrics (top 10% or bottom 10%) as
 // compact color-coded badges. Uses the same THRESHOLDS already defined above.
@@ -314,7 +335,7 @@ function highlightCounts(mlb, fg, sc) {
   return { up, down, total: up + down };
 }
 
-export default function MatchupsPanel({ gameData, paLog, streaksById, arsenalById, arsenalSplitsById, milestonesById, zonesById, onPitcherChange, onPinchHit, subsLog, awayBatterIdx, homeBatterIdx, isTop }) {
+export default function MatchupsPanel({ gameData, paLog, streaksById, arsenalById, arsenalSplitsById, milestonesById, zonesById, onPitcherChange, onPinchHit, subsLog, awayBatterIdx, homeBatterIdx, isTop, gameDate }) {
   const [sortAway, setSortAway] = useState({ col: null, dir: 'desc' });
   const [sortHome, setSortHome] = useState({ col: null, dir: 'desc' });
 
@@ -927,6 +948,7 @@ function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitch
                           >✦ AI</button>
                           <MilestoneBadges milestones={(milestonesById || {})[player.id]} />
                           <StreakBadges activeStreaks={streak.activeStreaks} />
+                          <BirthdayBadge birthDate={player.birthDate} gameDate={gameDate || gameData?.gameDate} />
                         </div>
                       </div>
                     </div>

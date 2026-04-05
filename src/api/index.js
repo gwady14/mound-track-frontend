@@ -309,6 +309,23 @@ export const getMilestonesCached      = makeCached(id => `cache:milestones:${id}
 export const getSituationalCached     = makeCached(id => `cache:situational:${id}`,    id => get(`/situational/${id}`));
 export const getPitcherFatigueCached  = makeCached(id => `cache:fatigue:${id}`,        id => get(`/pitcher-fatigue/${id}`));
 
+// ── Game Prep API functions ──────────────────────────────────────────────────
+
+export const getWeather = (city, date) =>
+  fetch(`${BASE}/game-prep/weather?city=${encodeURIComponent(city)}&date=${date}`).then(r => r.json());
+
+export const getParkFactors = (teamId) =>
+  fetch(`${BASE}/game-prep/park-factors/${teamId}`).then(r => r.json());
+
+export const getOnThisDay = (month, day) =>
+  fetch(`${BASE}/game-prep/on-this-day?month=${month}&day=${day}`).then(r => r.json());
+
+export const getPlayerBio = (playerId) =>
+  fetch(`${BASE}/game-prep/player-bio/${playerId}`).then(r => r.json());
+
+export const getSavantPercentiles = (playerId) =>
+  fetch(`${BASE}/game-prep/percentiles/${playerId}`).then(r => r.json());
+
 /** BvP bulk matchups; key is pitcherId + sorted batter IDs; caches 24hr. */
 export async function getBulkMatchupsCached(batters, pitcherId) {
   const ids = batters.map(b => b.id).sort().join(',');

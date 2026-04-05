@@ -28,6 +28,8 @@ export default function LineupInput({ onSubmit }) {
   const [awayPositions,  setAwayPositions]  = useState(Array(9).fill(''));
   const [homePitcher, setHomePitcher] = useState(null);
   const [awayPitcher, setAwayPitcher] = useState(null);
+  const [gameDate, setGameDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [gameTime, setGameTime] = useState('19:05');
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [loadingRoster, setLoadingRoster] = useState({ home: false, away: false });
   const [positionWarning, setPositionWarning] = useState('');
@@ -166,6 +168,8 @@ export default function LineupInput({ onSubmit }) {
       awayPitcher,
       homeRoster,
       awayRoster,
+      gameDate,
+      gameTime,
     });
   };
 
@@ -189,6 +193,8 @@ export default function LineupInput({ onSubmit }) {
       awayPitcher,
       homeRoster,
       awayRoster,
+      gameDate,
+      gameTime,
     });
   };
 
@@ -228,6 +234,26 @@ export default function LineupInput({ onSubmit }) {
         <p className="lineup-sub">
           Select both teams, enter the starting lineups, and pick the starting pitchers.
         </p>
+        <div className="lineup-meta-row">
+          <label className="lineup-meta-label">
+            Game Date
+            <input
+              type="date"
+              value={gameDate}
+              onChange={e => setGameDate(e.target.value)}
+              className="lineup-meta-input"
+            />
+          </label>
+          <label className="lineup-meta-label">
+            First Pitch
+            <input
+              type="time"
+              value={gameTime}
+              onChange={e => setGameTime(e.target.value)}
+              className="lineup-meta-input"
+            />
+          </label>
+        </div>
       </div>
 
       <div className="lineup-teams-row">

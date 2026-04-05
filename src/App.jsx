@@ -19,6 +19,7 @@ import GameSummary      from './components/GameSummary.jsx';
 import AuthPage        from './components/AuthPage.jsx';
 import GameHistory     from './components/GameHistory.jsx';
 import AdminPanel      from './components/AdminPanel.jsx';
+import GamePrepPanel   from './components/GamePrepPanel.jsx';
 import { useAuth }     from './context/AuthContext.jsx';
 import {
   api,
@@ -215,6 +216,7 @@ export default function App() {
         homeLineup, awayLineup,
         homePitcher, awayPitcher,
         homeRoster, awayRoster,
+        gameDate, gameTime,
       } = formData;
 
       // ── Fetch both lineup's season stats in parallel ─────────────────────
@@ -260,6 +262,8 @@ export default function App() {
         awayRoster: awayRoster || [],
         currentHomePitcher: homePitcher,
         currentAwayPitcher: awayPitcher,
+        gameDate: gameDate || new Date().toISOString().slice(0, 10),
+        gameTime: gameTime || '19:05',
         statsById,
         bvpById,
         streaksById:    {},
@@ -700,6 +704,7 @@ export default function App() {
           <div className="game-layout">
             <nav className="tab-bar">
               {[
+                { id: 'gameprep',    label: 'Game Prep' },
                 { id: 'matchups',    label: 'Matchups' },
                 { id: 'bullpen',     label: 'Bullpen' },
                 { id: 'situational', label: 'Situational' },
@@ -717,6 +722,13 @@ export default function App() {
             </nav>
 
             <div className="tab-content">
+              {tab === 'gameprep' && (
+                <GamePrepPanel
+                  gameData={gameData}
+                  streaksById={gameData.streaksById || {}}
+                  milestonesById={gameData.milestonesById || {}}
+                />
+              )}
               {tab === 'matchups' && (
                 <MatchupsPanel
                   gameData={gameData}
@@ -732,6 +744,7 @@ export default function App() {
                   awayBatterIdx={gameState.awayBatterIdx}
                   homeBatterIdx={gameState.homeBatterIdx}
                   isTop={gameState.isTop}
+                  gameDate={gameData.gameDate}
                 />
               )}
               {tab === 'bullpen' && (
