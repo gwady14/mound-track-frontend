@@ -382,7 +382,11 @@ export default function MatchupsPanel({ gameData, paLog, streaksById, arsenalByI
   };
 
   const getVal = (row, col) => {
-    const { mlb, fg, sc, bvp, player } = row;
+    const mlb = row.mlb || {};
+    const fg  = row.fg  || {};
+    const sc  = row.sc  || {};
+    const bvp = row.bvp || {};
+    const player = row.player;
     const streak = (streaksById || {})[player?.id] || {};
     const map = {
       avg: mlb.avg, obp: mlb.obp, slg: mlb.slg, ops: mlb.ops,
@@ -466,6 +470,7 @@ export default function MatchupsPanel({ gameData, paLog, streaksById, arsenalByI
           pinchHitRoster={(awayRoster || []).filter(p => !awayLineup.some(b => b?.id === p.id))}
           onPinchHit={onPinchHit ? (slot, p) => onPinchHit('away', slot, p) : null}
           alreadyPlayed={(subsLog || []).filter(s => s.side === 'away').map(s => s.outPlayer).filter(Boolean)}
+          gameDate={gameDate}
         />
         <LineupMatchupTable
           label={`${homeTeam?.abbreviation} Lineup`}
@@ -488,6 +493,7 @@ export default function MatchupsPanel({ gameData, paLog, streaksById, arsenalByI
           pinchHitRoster={(homeRoster || []).filter(p => !homeLineup.some(b => b?.id === p.id))}
           onPinchHit={onPinchHit ? (slot, p) => onPinchHit('home', slot, p) : null}
           alreadyPlayed={(subsLog || []).filter(s => s.side === 'home').map(s => s.outPlayer).filter(Boolean)}
+          gameDate={gameDate}
         />
       </div>
 
@@ -724,7 +730,7 @@ function PitcherCapsule({ team, label, pitcher, stats, arsenal, arsenalSplits, f
 }
 
 // ── One lineup's matchup table ─────────────────────────────────────────────
-function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitcher, pitcherOptions, onPitcherChange, paLog, streaksById, arsenalById, milestonesById, sprayById, zonesById, batterIdx, lineupLength, isBatting, pinchHitRoster, onPinchHit, alreadyPlayed }) {
+function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitcher, pitcherOptions, onPitcherChange, paLog, streaksById, arsenalById, milestonesById, sprayById, zonesById, batterIdx, lineupLength, isBatting, pinchHitRoster, onPinchHit, alreadyPlayed, gameDate }) {
   const [activePHSlot,        setActivePHSlot]        = useState(null);
   const [activeSpraySlot,     setActiveSpraySlot]     = useState(null);
   const [activeZoneSlot,      setActiveZoneSlot]      = useState(null);
@@ -846,7 +852,11 @@ function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitch
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ player, mlb, fg, sc, bvp, slot }, i) => {
+            {rows.map(({ player, mlb: mlbRaw, fg: fgRaw, sc: scRaw, bvp: bvpRaw, slot }, i) => {
+              const mlb = mlbRaw || {};
+              const fg  = fgRaw  || {};
+              const sc  = scRaw  || {};
+              const bvp = bvpRaw || {};
               const streak = (streaksById || {})[player.id] || {};
               const seasonAvg = parseFloat(mlb.avg) || null;
 
@@ -948,7 +958,7 @@ function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitch
                           >✦ AI</button>
                           <MilestoneBadges milestones={(milestonesById || {})[player.id]} />
                           <StreakBadges activeStreaks={streak.activeStreaks} />
-                          <BirthdayBadge birthDate={player.birthDate} gameDate={gameDate || gameData?.gameDate} />
+                          <BirthdayBadge birthDate={player.birthDate} gameDate={gameDate} />
                         </div>
                       </div>
                     </div>

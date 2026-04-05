@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import TabErrorBoundary from './components/TabErrorBoundary.jsx';
 import LineupInput     from './components/LineupInput.jsx';
 import MatchupsPanel   from './components/MatchupsPanel.jsx';
 import BullpenPanel    from './components/BullpenPanel.jsx';
@@ -746,7 +747,7 @@ export default function App() {
               ))}
             </nav>
 
-            <div className="tab-content">
+            <div className="tab-content"><TabErrorBoundary key={tab}>
               {tab === 'gameprep' && (
                 <GamePrepPanel
                   gameData={gameData}
@@ -802,7 +803,7 @@ export default function App() {
                   statsById={gameData.statsById}
                 />
               )}
-            </div>
+            </TabErrorBoundary></div>
           </div>
         )}
       </main>
