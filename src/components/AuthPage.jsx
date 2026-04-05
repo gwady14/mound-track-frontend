@@ -151,12 +151,6 @@ export default function AuthPage() {
           >
             Sign In
           </button>
-          <button
-            className={`auth-tab ${mode === 'signup' ? 'active' : ''}`}
-            onClick={() => switchMode('signup')}
-          >
-            Create Account
-          </button>
         </div>
 
         {/* Forgot/reset headings */}
