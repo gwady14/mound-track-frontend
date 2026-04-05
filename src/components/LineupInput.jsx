@@ -111,13 +111,21 @@ export default function LineupInput({ onSubmit }) {
       .filter(p => p.position?.type !== 'Pitcher')
       .slice(0, 9);
     const lineup = Array(9).fill(null).map((_, i) => batters[i] || null);
-    // Assign each player's position only if it hasn't been used yet
+    // Standard field positions in assignment priority order
+    const STANDARD_POSITIONS = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'];
     const usedPositions = new Set();
     const positions = lineup.map(p => {
-      const pos = p?.position?.abbreviation || '';
-      if (!pos || usedPositions.has(pos)) return '';
-      usedPositions.add(pos);
-      return pos;
+      if (!p) return '';
+      const primary = p.position?.abbreviation || '';
+      // Use primary if available
+      if (primary && !usedPositions.has(primary)) {
+        usedPositions.add(primary);
+        return primary;
+      }
+      // Otherwise assign next available standard position
+      const fallback = STANDARD_POSITIONS.find(pos => !usedPositions.has(pos));
+      if (fallback) { usedPositions.add(fallback); return fallback; }
+      return '';
     });
     if (side === 'home') { setHomeLineup(lineup); setHomePositions(positions); }
     else                 { setAwayLineup(lineup); setAwayPositions(positions); }
