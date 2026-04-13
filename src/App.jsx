@@ -65,7 +65,6 @@ const EMPTY_GAME = {
   awayPitcherStartPA:  0,   // paLog index when current away pitcher entered
   currentPAPitches:    [],  // BK-24: pitch-by-pitch log for the active PA [{type, result}]
   runnerEvents:        [],  // non-PA baserunner events: [{type,runnerId,runnerName,fromBase,toBase,inning,side}]
-  pbpNotes:            [],  // broadcaster notes: [{id,text,seq,inning,side}]
   gameEventSeq:        0,   // monotonically increasing counter stamped on every PA and runner event
 };
 

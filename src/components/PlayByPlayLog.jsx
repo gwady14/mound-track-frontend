@@ -14,6 +14,8 @@
  * Newest plays appear at the top.
  *
  * BK-28: Toggle button in header filters to the currently highlighted batter.
+ * Notes: each PA row has a small ✏️ button; clicking opens an inline input
+ *        whose text is saved on the PA entry so it travels with that player.
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -80,31 +82,64 @@ function outcomeClass(outcome) {
   return '';
 }
 
-export default function PlayByPlayLog({ paLog = [], runnerEvents = [], pbpNotes = [], awayTeam, homeTeam, filterBatterId = null, filterBatterName = null, onDeletePA = null, onDeleteRunner = null, onAddNote = null, onDeleteNote = null }) {
-  const [showAll, setShowAll] = useState(true);
-  const [composing, setComposing] = useState(false);
-  const [noteText, setNoteText]   = useState('');
-  const inputRef = useRef(null);
+// Inline note editor for a single PA row
+function PANoteEditor({ paIndex, existingNote, onSave }) {
+  const [open, setOpen]   = useState(false);
+  const [text, setText]   = useState(existingNote || '');
+  const inputRef          = useRef(null);
 
-  // Focus input when compose bar opens
   useEffect(() => {
-    if (composing && inputRef.current) inputRef.current.focus();
-  }, [composing]);
+    if (open && inputRef.current) inputRef.current.focus();
+  }, [open]);
 
-  const submitNote = () => {
-    if (noteText.trim() && onAddNote) {
-      onAddNote(noteText.trim());
-    }
-    setNoteText('');
-    setComposing(false);
+  // Sync if parent clears the note externally
+  useEffect(() => { setText(existingNote || ''); }, [existingNote]);
+
+  const save = () => {
+    onSave(paIndex, text.trim());
+    setOpen(false);
   };
 
-  const handleNoteKey = (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); submitNote(); }
-    if (e.key === 'Escape') { setNoteText(''); setComposing(false); }
+  const handleKey = (e) => {
+    if (e.key === 'Enter')  { e.preventDefault(); save(); }
+    if (e.key === 'Escape') { setText(existingNote || ''); setOpen(false); }
   };
 
-  // Combine PA entries, runner events, and notes into a single sorted timeline.
+  return (
+    <span className="pbp-note-wrap">
+      <button
+        className={`pbp-note-icon-btn${existingNote ? ' pbp-note-has-note' : ''}`}
+        onClick={() => setOpen(v => !v)}
+        title={existingNote ? 'Edit note' : 'Add note'}
+      >✏️</button>
+      {open && (
+        <span className="pbp-note-input-row">
+          <input
+            ref={inputRef}
+            className="pbp-note-input"
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder="Add a note…"
+            maxLength={200}
+          />
+          <button className="pbp-note-save" onClick={save}>✓</button>
+          {text && (
+            <button className="pbp-note-clear" onClick={() => { setText(''); onSave(paIndex, ''); setOpen(false); }} title="Clear note">✕</button>
+          )}
+        </span>
+      )}
+      {!open && existingNote && (
+        <span className="pbp-note-text">{existingNote}</span>
+      )}
+    </span>
+  );
+}
+
+export default function PlayByPlayLog({ paLog = [], runnerEvents = [], awayTeam, homeTeam, filterBatterId = null, filterBatterName = null, onDeletePA = null, onDeleteRunner = null, onUpdatePANote = null }) {
+  const [showAll, setShowAll] = useState(true);
+
+  // Combine PA entries and runner events into a single sorted timeline.
   // Each event has a `seq` counter stamped at creation time — sort descending for newest-first.
   // Fall back to array index for older events that pre-date the seq counter.
   // Events WITH a `seq` counter (>= 0) sort above legacy events WITHOUT one.
@@ -112,49 +147,25 @@ export default function PlayByPlayLog({ paLog = [], runnerEvents = [], pbpNotes 
   const combined = [
     ...paLog.map((pa, i)        => ({ ...pa, _kind: 'pa',     _origIdx: i, _seq: pa.seq != null ? pa.seq : -(paLog.length - i) })),
     ...runnerEvents.map((re, i) => ({ ...re, _kind: 'runner', _origIdx: i, _seq: re.seq != null ? re.seq : -(runnerEvents.length - i) })),
-    ...pbpNotes.map((n)         => ({ ...n,  _kind: 'note',   _origIdx: n.id, _seq: n.seq })),
   ].sort((a, b) => b._seq - a._seq); // newest first
 
-  // Apply batter filter (includes runner events for that player; notes always shown)
+  // Apply batter filter (includes runner events for that player)
   const filtered = showAll
     ? combined
     : combined.filter(e =>
-        e._kind === 'note'   ? true :
-        e._kind === 'pa'     ? e.batterId  === filterBatterId :
-                               e.runnerId  === filterBatterId
+        e._kind === 'pa'
+          ? e.batterId  === filterBatterId
+          : e.runnerId  === filterBatterId
       );
 
-  const hasEvents = paLog.length > 0 || runnerEvents.length > 0 || pbpNotes.length > 0;
+  const hasEvents = paLog.length > 0 || runnerEvents.length > 0;
 
   if (!hasEvents) {
     return (
       <div className="pbp-log card">
         <div className="pbp-header">
           <span className="section-title">Play-by-Play</span>
-          <div className="pbp-header-right">
-            {onAddNote && (
-              <button
-                className="pbp-note-btn"
-                onClick={() => setComposing(v => !v)}
-                title="Add a note"
-              >✏️</button>
-            )}
-          </div>
         </div>
-        {composing && (
-          <div className="pbp-compose">
-            <input
-              ref={inputRef}
-              className="pbp-compose-input"
-              placeholder="Add a note…"
-              value={noteText}
-              onChange={e => setNoteText(e.target.value)}
-              onKeyDown={handleNoteKey}
-              maxLength={200}
-            />
-            <button className="pbp-compose-submit" onClick={submitNote} disabled={!noteText.trim()}>Add</button>
-          </div>
-        )}
         <div className="pbp-empty">No plays yet — start scoring to see the log.</div>
       </div>
     );
@@ -174,51 +185,13 @@ export default function PlayByPlayLog({ paLog = [], runnerEvents = [], pbpNotes 
               {showAll ? 'Team' : 'Player'}
             </button>
           )}
-          {onAddNote && (
-            <button
-              className={`pbp-note-btn${composing ? ' pbp-note-btn-active' : ''}`}
-              onClick={() => setComposing(v => !v)}
-              title={composing ? 'Cancel note' : 'Add a note'}
-            >✏️</button>
-          )}
         </div>
       </div>
-
-      {/* Compose bar — only visible when user opens it */}
-      {composing && (
-        <div className="pbp-compose">
-          <input
-            ref={inputRef}
-            className="pbp-compose-input"
-            placeholder="Add a note… (Enter to save, Esc to cancel)"
-            value={noteText}
-            onChange={e => setNoteText(e.target.value)}
-            onKeyDown={handleNoteKey}
-            maxLength={200}
-          />
-          <button className="pbp-compose-submit" onClick={submitNote} disabled={!noteText.trim()}>Add</button>
-        </div>
-      )}
-
       {filtered.length === 0 ? (
         <div className="pbp-empty">No plays for {filterBatterName || 'this batter'} yet.</div>
       ) : (
         <div className="pbp-scroll">
           {filtered.map((e, i) => {
-
-            // ── Note row ──────────────────────────────────────────────────
-            if (e._kind === 'note') {
-              return (
-                <div key={`note-${e.id}`} className="pbp-entry pbp-note">
-                  <span className="pbp-note-icon">📝</span>
-                  <span className="pbp-note-text">{e.text}</span>
-                  {onDeleteNote && (
-                    <button className="pbp-delete-btn" onClick={() => onDeleteNote(e.id)} title="Delete note">×</button>
-                  )}
-                </div>
-              );
-            }
-
             const half = e.side === 'away' ? '▲' : '▼';
             const team = e.side === 'away'
               ? (awayTeam?.abbreviation || 'AWY')
@@ -267,6 +240,13 @@ export default function PlayByPlayLog({ paLog = [], runnerEvents = [], pbpNotes 
                 {e.battedBallType   && <span className="pbp-ball-type">{e.battedBallType}</span>}
                 {suffixParts.length > 0 && <span className="pbp-suffix">{suffixParts.join(', ')}</span>}
                 {e.pitcherName && <span className="pbp-pitcher">off {e.pitcherName.split(' ').slice(-1)[0]}</span>}
+                {onUpdatePANote && (
+                  <PANoteEditor
+                    paIndex={e._origIdx}
+                    existingNote={e.note || ''}
+                    onSave={onUpdatePANote}
+                  />
+                )}
                 {onDeletePA && (
                   <button className="pbp-delete-btn" onClick={() => onDeletePA(e._origIdx)} title="Delete this play">×</button>
                 )}

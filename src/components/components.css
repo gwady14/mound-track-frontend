@@ -3072,64 +3072,65 @@
 .pbp-outcome.pbp-error-score { color: #fb923c; }
 .pbp-runner                { font-style: italic; opacity: 0.9; }
 
-/* Note rows */
-.pbp-entry.pbp-note {
-  border-left-color: var(--text-dim);
-  background: rgba(255,255,255,0.03);
-  gap: 6px;
-  font-style: italic;
-  opacity: 0.75;
+/* Per-PA inline note editor */
+.pbp-note-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 2px;
+  flex-wrap: wrap;
 }
-.pbp-note-icon  { font-size: 10px; flex-shrink: 0; }
-.pbp-note-text  { font-size: 12px; color: var(--text-secondary); flex: 1; line-height: 1.4; }
-
-/* Compose bar */
-.pbp-compose {
-  display: flex;
-  gap: 6px;
-  padding: 6px 10px 4px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-card);
-}
-.pbp-compose-input {
-  flex: 1;
-  background: var(--bg-input, var(--bg-hover));
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  color: var(--text-primary);
-  font-size: 12px;
-  padding: 4px 8px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.pbp-compose-input:focus { border-color: var(--accent); }
-.pbp-compose-submit {
-  background: var(--accent);
-  border: none;
-  border-radius: 5px;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-.pbp-compose-submit:disabled { opacity: 0.35; cursor: default; }
-.pbp-compose-submit:not(:disabled):hover { opacity: 0.85; }
-
-/* Note button in PBP header */
-.pbp-note-btn {
+.pbp-note-icon-btn {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 13px;
-  opacity: 0.4;
-  padding: 2px 4px;
-  border-radius: 4px;
+  font-size: 10px;
+  opacity: 0;           /* hidden until row is hovered */
+  padding: 1px 3px;
+  border-radius: 3px;
+  line-height: 1;
   transition: opacity 0.15s, background 0.15s;
+  flex-shrink: 0;
 }
-.pbp-note-btn:hover      { opacity: 0.9; background: var(--bg-hover); }
-.pbp-note-btn-active     { opacity: 0.9 !important; }
+.pbp-entry:hover .pbp-note-icon-btn { opacity: 0.45; }
+.pbp-note-icon-btn:hover            { opacity: 1 !important; background: var(--bg-hover); }
+.pbp-note-has-note                  { opacity: 0.7 !important; } /* always visible when note exists */
+.pbp-note-input-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.pbp-note-input {
+  background: var(--bg-input, var(--bg-hover));
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 2px 6px;
+  outline: none;
+  width: 160px;
+}
+.pbp-note-save,
+.pbp-note-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  transition: background 0.12s;
+}
+.pbp-note-save  { color: var(--accent); }
+.pbp-note-clear { color: var(--text-dim); }
+.pbp-note-save:hover  { background: var(--bg-hover); }
+.pbp-note-clear:hover { background: var(--bg-hover); }
+/* Saved note text shown inline after the play */
+.pbp-note-text {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-dim);
+  line-height: 1.3;
+}
 
 .pbp-inning {
   font-size: 10px;

@@ -1066,30 +1066,14 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
     });
   }, [pushHistory, setGameState]);
 
-  // Add / delete broadcaster notes in the PBP feed
-  const addPBPNote = useCallback((text) => {
-    if (!text.trim()) return;
+  // Attach / update a broadcaster note on a specific PA entry
+  const updatePANote = useCallback((paIndex, text) => {
     setGameState(prev => {
-      const seq = prev.gameEventSeq;
-      return {
-        ...prev,
-        gameEventSeq: seq + 1,
-        pbpNotes: [...(prev.pbpNotes || []), {
-          id: `note-${seq}`,
-          text: text.trim(),
-          seq,
-          inning: prev.inning,
-          side: prev.isTop ? 'away' : 'home',
-        }],
-      };
+      const log = [...(prev.paLog || [])];
+      if (!log[paIndex]) return prev;
+      log[paIndex] = { ...log[paIndex], note: text || '' };
+      return { ...prev, paLog: log };
     });
-  }, [setGameState]);
-
-  const deletePBPNote = useCallback((noteId) => {
-    setGameState(prev => ({
-      ...prev,
-      pbpNotes: (prev.pbpNotes || []).filter(n => n.id !== noteId),
-    }));
   }, [setGameState]);
 
   // Click a base → show action menu (advance / score / out / cancel).
@@ -2371,15 +2355,13 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           <PlayByPlayLog
             paLog={paLog || []}
             runnerEvents={gameState.runnerEvents || []}
-            pbpNotes={gameState.pbpNotes || []}
             awayTeam={awayTeam}
             homeTeam={homeTeam}
             filterBatterId={highlightedBatter?.id || null}
             filterBatterName={highlightedBatter?.name || null}
             onDeletePA={deletePA}
             onDeleteRunner={deleteRunnerEvent}
-            onAddNote={addPBPNote}
-            onDeleteNote={deletePBPNote}
+            onUpdatePANote={updatePANote}
           />
         </div>
 
