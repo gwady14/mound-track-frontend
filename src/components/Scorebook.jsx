@@ -259,10 +259,17 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
   const currentBatterIdx = isTop ? awayBatterIdx : homeBatterIdx;
   const currentBatter   = currentLineup[currentBatterIdx % Math.max(currentLineup.length, 1)];
 
+  // View perspective — flipped by the pitcher team toggle button.
+  // currentLineup/currentBatter always track the real at-bat for pitch controls;
+  // viewLineup/viewBatterIdx drive the display (lineup + pitcher strip + PBP filter).
+  const viewIsTop      = pitcherViewFlipped ? !isTop : isTop;
+  const viewLineup     = viewIsTop ? awayLineup : homeLineup;
+  const viewBatterIdx  = viewIsTop ? awayBatterIdx : homeBatterIdx;
+
   // ── BK-28: Highlighted batter for PBP filter (separate from at-bat pointer) ─
   const [highlightedBatterIdx, setHighlightedBatterIdx] = useState(null); // null = follow at-bat
-  const effectiveHLIdx   = highlightedBatterIdx ?? (currentBatterIdx % Math.max(currentLineup.length, 1));
-  const highlightedBatter = currentLineup[effectiveHLIdx] || null;
+  const effectiveHLIdx   = highlightedBatterIdx ?? (viewBatterIdx % Math.max(viewLineup.length, 1));
+  const highlightedBatter = viewLineup[effectiveHLIdx] || null;
 
   // ── BK-27: Lineup drag-and-drop reorder ──────────────────────────────────
   const [dragIdx,     setDragIdx]     = useState(null);
@@ -1518,8 +1525,10 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
   // Keep ghostRunnerRef in sync so applyOutcome/endHalfInning always see current value
   useEffect(() => { ghostRunnerRef.current = ghostRunnerEnabled; }, [ghostRunnerEnabled]);
 
-  // Reset pitcher view flip when the half-inning changes
-  useEffect(() => { setPitcherViewFlipped(false); }, [inning, isTop]);
+  // Reset pitcher view flip and batter highlight when the half-inning changes
+  useEffect(() => { setPitcherViewFlipped(false); setHighlightedBatterIdx(null); }, [inning, isTop]);
+  // Reset batter highlight when toggling team view
+  useEffect(() => { setHighlightedBatterIdx(null); }, [pitcherViewFlipped]);
 
   // ── Fetch fatigue data for pitchers as they appear ─────────────────────
   const homePitcherId = (gameData?.currentHomePitcher || gameData?.homePitcher)?.id;
@@ -2324,8 +2333,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
         <div className="card batter-card">
           {/* ── Opposing pitcher strip ───────────────────────────────────── */}
           {(() => {
-            // pitcherViewFlipped lets the user peek at the other team's pitcher
-            const viewIsTop    = pitcherViewFlipped ? !isTop : isTop;
+            // viewIsTop is defined at component level, driven by pitcherViewFlipped
             const pitchingSide = viewIsTop ? 'home' : 'away';
             const oppPitcher   = viewIsTop
               ? (gameData.currentHomePitcher || gameData.homePitcher)
@@ -2642,23 +2650,23 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
 
             return (
               <div className="mini-lineup">
-                {currentLineup.map((batter, i) => {
+                {viewLineup.map((batter, i) => {
                   if (!batter) return null;
-                  const isCurrent    = i === (currentBatterIdx % Math.max(currentLineup.length, 1));
-                  const effectiveHL  = highlightedBatterIdx ?? (currentBatterIdx % Math.max(currentLineup.length, 1));
+                  const isCurrent    = !pitcherViewFlipped && i === (currentBatterIdx % Math.max(viewLineup.length, 1));
+                  const effectiveHL  = highlightedBatterIdx ?? (viewBatterIdx % Math.max(viewLineup.length, 1));
                   const isHighlighted = i === effectiveHL;
                   const isActiveSub = activePHSlot === i;
                   return (
                     <React.Fragment key={batter.id}>
                       <div
                         className={`mini-lineup-row ${isCurrent ? 'current' : ''}${isHighlighted && !isCurrent ? ' highlighted' : ''}${dragIdx === i ? ' dragging' : ''}${dragOverIdx === i && dragIdx !== i ? ' drag-over' : ''}`}
-                        draggable={!!onLineupReorder}
-                        onDragStart={onLineupReorder ? (e) => handleLineupDragStart(e, i) : undefined}
-                        onDragOver={onLineupReorder ? (e) => handleLineupDragOver(e, i) : undefined}
-                        onDrop={onLineupReorder ? (e) => handleLineupDrop(e, i) : undefined}
-                        onDragEnd={onLineupReorder ? handleLineupDragEnd : undefined}
+                        draggable={!!onLineupReorder && !pitcherViewFlipped}
+                        onDragStart={onLineupReorder && !pitcherViewFlipped ? (e) => handleLineupDragStart(e, i) : undefined}
+                        onDragOver={onLineupReorder && !pitcherViewFlipped ? (e) => handleLineupDragOver(e, i) : undefined}
+                        onDrop={onLineupReorder && !pitcherViewFlipped ? (e) => handleLineupDrop(e, i) : undefined}
+                        onDragEnd={onLineupReorder && !pitcherViewFlipped ? handleLineupDragEnd : undefined}
                         onClick={() => {
-                          const atBatIdx = currentBatterIdx % Math.max(currentLineup.length, 1);
+                          const atBatIdx = viewBatterIdx % Math.max(viewLineup.length, 1);
                           setHighlightedBatterIdx(prev => {
                             if (prev === i) return null;      // toggle off → follow at-bat
                             if (i === atBatIdx) return null;  // clicking at-bat batter → stay in follow mode
