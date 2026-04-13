@@ -1096,6 +1096,8 @@
 .base-action-btn:hover { background: var(--bg-hover); }
 .base-action-score { border-color: rgba(74,158,255,.4); color: #4a9eff; }
 .base-action-score:hover { background: rgba(74,158,255,.12); }
+.base-action-score-error { border-color: rgba(251,146,60,.4); color: #fb923c; }
+.base-action-score-error:hover { background: rgba(251,146,60,.12); }
 .base-action-out { border-color: rgba(239,68,68,.4); color: #ef4444; }
 .base-action-out:hover { background: rgba(239,68,68,.12); }
 .base-action-cancel { color: var(--text-dim); font-weight: 400; font-size: 10px; }

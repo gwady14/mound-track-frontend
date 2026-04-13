@@ -49,17 +49,20 @@ const OUTCOME_LABEL = {
 // Runner event labels and categories
 const RUNNER_LABEL = {
   // Advances
-  sb:         'SB',
-  wp:         'WP',
-  pb:         'PB',
-  'on-play':  'Adv',
-  other:      'Adv',
+  sb:           'SB',
+  wp:           'WP',
+  pb:           'PB',
+  'on-play':    'Adv',
+  other:        'Adv',
+  // Scores
+  score:        'Scores',
+  'score-error':'Scores (E)',
   // Outs
-  cs:         'CS',
-  po:         'PO',
-  'out-play': 'Out',
-  rundown:    'Out',
-  'out-other':'Out',
+  cs:           'CS',
+  po:           'PO',
+  'out-play':   'Out',
+  rundown:      'Out',
+  'out-other':  'Out',
 };
 
 const RUNNER_OUT_TYPES  = new Set(['cs', 'po', 'out-play', 'rundown', 'out-other']);
@@ -146,13 +149,15 @@ export default function PlayByPlayLog({ paLog = [], runnerEvents = [], awayTeam,
               const baseSuffix = !isOut && e.fromBase != null && e.toBase != null
                 ? ` (${BASE_NAME[e.fromBase]}→${BASE_NAME[e.toBase]})`
                 : '';
+              const isScoreError = e.type === 'score-error';
+              const rowCls = isOut ? 'pbp-out' : isScoreError ? 'pbp-error-score' : 'pbp-sb';
               return (
-                <div key={`re-${i}`} className={`pbp-entry pbp-runner ${isOut ? 'pbp-out' : 'pbp-sb'}`}>
+                <div key={`re-${i}`} className={`pbp-entry pbp-runner ${rowCls}`}>
                   <span className="pbp-inning">{half}{e.inning}</span>
                   <span className="pbp-team">{team}</span>
                   <span className="pbp-batter">{lastName}</span>
                   <span className="pbp-dash">—</span>
-                  <span className={`pbp-outcome ${isOut ? 'pbp-out' : 'pbp-sb'}`}>{label}</span>
+                  <span className={`pbp-outcome ${rowCls}`}>{label}</span>
                   {baseSuffix && <span className="pbp-notation">{baseSuffix}</span>}
                   {onDeleteRunner && (
                     <button className="pbp-delete-btn" onClick={() => onDeleteRunner(e._origIdx)} title="Delete this play">×</button>

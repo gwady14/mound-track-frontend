@@ -1210,6 +1210,28 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
         }
       } else if (action === 'score') {
         scoreRunner(true); // direct Score button — always an RBI
+        newRunnerEvents.push({
+          type:       'score',
+          runnerId:   runner?.id   || null,
+          runnerName: runner?.name || '?',
+          fromBase:   baseIdx,
+          toBase:     3,
+          inning:     prev.inning,
+          side,
+          seq:        newGameEventSeq++,
+        });
+      } else if (action === 'score-error') {
+        scoreRunner(false); // scored on error — no RBI
+        newRunnerEvents.push({
+          type:       'score-error',
+          runnerId:   runner?.id   || null,
+          runnerName: runner?.name || '?',
+          fromBase:   baseIdx,
+          toBase:     3,
+          inning:     prev.inning,
+          side,
+          seq:        newGameEventSeq++,
+        });
       }
 
       return { ...prev, bases: newBases, outs: newOuts, isTop: newIsTop, inning: newInning, score: newScore, inningScores: newInningScores, runnerEvents: newRunnerEvents, paLog: newPaLog, gameEventSeq: newGameEventSeq, balls: newOuts === 0 ? 0 : prev.balls, strikes: newOuts === 0 ? 0 : prev.strikes };
@@ -1802,6 +1824,9 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                   )}
                   <button className="base-action-btn base-action-score" onClick={() => handleBaseAction('score')}>
                     Score
+                  </button>
+                  <button className="base-action-btn base-action-score-error" onClick={() => handleBaseAction('score-error')}>
+                    Score (E)
                   </button>
                   <button className="base-action-btn base-action-out" onClick={() => handleBaseAction('out')}>
                     Out
