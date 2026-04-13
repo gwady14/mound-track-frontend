@@ -901,9 +901,11 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
 
   const selectFCRunner = useCallback((baseIdx) => {
     setBipFCRetiredBase(baseIdx);
+    // With 2 outs a double play is impossible — skip the DP prompt
+    if (outs >= 2) { setBipFCIsDP(false); goToNotation('fc'); return; }
     setBipStep('fc-dp');
     setMenuFocusIdx(0);
-  }, []);
+  }, [outs, goToNotation]);
 
   const confirmFCDP = useCallback((isDP) => {
     setBipFCIsDP(isDP);
