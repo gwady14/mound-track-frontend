@@ -211,7 +211,8 @@ function PitchModalILP({ onSelect, focused }) {
 export default function Scorebook({ gameData, gameState, setGameState, onPinchHit, onPitcherChange, onLineupReorder, onEndGame }) {
   const { homeTeam, awayTeam, homeLineup, awayLineup, homeRoster, awayRoster } = gameData;
   const [activePHSlot,    setActivePHSlot]    = useState(null);
-  const [showPitcherSub,  setShowPitcherSub]  = useState(false);
+  const [showPitcherSub,     setShowPitcherSub]     = useState(false);
+  const [pitcherViewFlipped, setPitcherViewFlipped] = useState(false);
   const [insightsCache,   setInsightsCache]   = useState({});
   const [loadingInsight,  setLoadingInsight]  = useState(null);
   const [activeInsightId, setActiveInsightId] = useState(null);
@@ -1517,6 +1518,9 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
   // Keep ghostRunnerRef in sync so applyOutcome/endHalfInning always see current value
   useEffect(() => { ghostRunnerRef.current = ghostRunnerEnabled; }, [ghostRunnerEnabled]);
 
+  // Reset pitcher view flip when the half-inning changes
+  useEffect(() => { setPitcherViewFlipped(false); }, [inning, isTop]);
+
   // ── Fetch fatigue data for pitchers as they appear ─────────────────────
   const homePitcherId = (gameData?.currentHomePitcher || gameData?.homePitcher)?.id;
   const awayPitcherId = (gameData?.currentAwayPitcher || gameData?.awayPitcher)?.id;
@@ -2320,12 +2324,14 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
         <div className="card batter-card">
           {/* ── Opposing pitcher strip ───────────────────────────────────── */}
           {(() => {
-            const pitchingSide = isTop ? 'home' : 'away';
-            const oppPitcher   = isTop
+            // pitcherViewFlipped lets the user peek at the other team's pitcher
+            const viewIsTop    = pitcherViewFlipped ? !isTop : isTop;
+            const pitchingSide = viewIsTop ? 'home' : 'away';
+            const oppPitcher   = viewIsTop
               ? (gameData.currentHomePitcher || gameData.homePitcher)
               : (gameData.currentAwayPitcher || gameData.awayPitcher);
-            const oppTeam      = isTop ? homeTeam : awayTeam;
-            const oppPitchCount = isTop ? (homePitchCount || 0) : (awayPitchCount || 0);
+            const oppTeam      = viewIsTop ? homeTeam : awayTeam;
+            const oppPitchCount = viewIsTop ? (homePitchCount || 0) : (awayPitchCount || 0);
             const pStats   = oppPitcher ? (gameData.statsById?.[oppPitcher.id] || {}) : {};
             const pArsenal = oppPitcher ? ((gameData.arsenalById || {})[oppPitcher.id] || []) : [];
             if (!oppPitcher) return null;
@@ -2340,8 +2346,8 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
 
             // ── Compute current pitcher's in-game line from paLog ───────────
             // Batting side PAs since this pitcher entered
-            const pitcherPASide  = isTop ? 'away' : 'home';
-            const pitcherStartPA = isTop
+            const pitcherPASide  = viewIsTop ? 'away' : 'home';
+            const pitcherStartPA = viewIsTop
               ? (homePitcherStartPA || 0)
               : (awayPitcherStartPA || 0);
             const pitcherPAs = (paLog || []).filter(
@@ -2365,11 +2371,11 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             const gK   = pitcherPAs.filter(pa => pa.isK).length;
             const gHR  = pitcherPAs.filter(pa => pa.isHR).length;
             // Total balls and strikes thrown this outing (from pitch log).
-            // Include currentPAPitches so the live at-bat counts immediately —
-            // completed PAs are in paLog; the in-progress PA is in currentPAPitches.
+            // Only include currentPAPitches when viewing the actual current pitcher,
+            // not when peeking at the other team's pitcher.
             const allPitches = [
               ...pitcherPAs.flatMap(pa => pa.pitches || []),
-              ...(gameState.currentPAPitches || []),
+              ...(!pitcherViewFlipped ? (gameState.currentPAPitches || []) : []),
             ];
             const gTotalB  = allPitches.filter(p => p.result === 'B').length;
             const gTotalS  = allPitches.filter(p => ['C','S','F','P'].includes(p.result)).length;
@@ -2389,7 +2395,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
               p.position?.type === 'Pitcher' ||
               p.position?.code === '1' ||
               p.position?.abbreviation === 'P';
-            const pitchingRoster   = (isTop ? homeRoster : awayRoster) || [];
+            const pitchingRoster   = (viewIsTop ? homeRoster : awayRoster) || [];
             const usedPitcherIds   = new Set(
               (gameData.subsLog || [])
                 .filter(s => s.side === pitchingSide && s.outPlayer)
@@ -2424,7 +2430,21 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
                     className="sb-team-logo-sm"
                   />
                   <span className="sb-pitcher-team-badge">{oppTeam?.abbreviation}</span>
-                  {onPitcherChange && (
+                  {/* Toggle to peek at the other team's pitcher */}
+                  {(() => {
+                    const otherTeam = viewIsTop ? awayTeam : homeTeam;
+                    return (
+                      <button
+                        className={`btn btn-ghost btn-sm${pitcherViewFlipped ? ' active' : ''}`}
+                        onClick={() => { setPitcherViewFlipped(v => !v); setShowPitcherSub(false); }}
+                        title={pitcherViewFlipped ? 'Back to current pitcher' : `View ${otherTeam?.abbreviation || 'other'} pitcher`}
+                        style={{ opacity: 0.7, fontSize: 11 }}
+                      >
+                        ⇄ {otherTeam?.abbreviation || 'Other'}
+                      </button>
+                    );
+                  })()}
+                  {onPitcherChange && !pitcherViewFlipped && (
                     <button
                       className={`btn btn-ghost btn-sm sb-change-pitcher-btn${showPitcherSub ? ' active' : ''}`}
                       onClick={() => setShowPitcherSub(v => !v)}
