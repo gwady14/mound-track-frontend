@@ -3067,8 +3067,69 @@
 .pbp-entry.pbp-bb     { border-left-color: #60a5fa; background: rgba(96,165,250,0.05); }
 .pbp-entry.pbp-out    { border-left-color: var(--border); }
 .pbp-entry.pbp-error  { border-left-color: #a78bfa; background: rgba(167,139,250,0.05); }
-.pbp-entry.pbp-sb     { border-left-color: #a78bfa; background: rgba(167,139,250,0.05); }
-.pbp-runner           { font-style: italic; opacity: 0.9; }
+.pbp-entry.pbp-sb          { border-left-color: #a78bfa; background: rgba(167,139,250,0.05); }
+.pbp-entry.pbp-error-score { border-left-color: #fb923c; background: rgba(251,146,60,0.06); }
+.pbp-outcome.pbp-error-score { color: #fb923c; }
+.pbp-runner                { font-style: italic; opacity: 0.9; }
+
+/* Note rows */
+.pbp-entry.pbp-note {
+  border-left-color: var(--text-dim);
+  background: rgba(255,255,255,0.03);
+  gap: 6px;
+  font-style: italic;
+  opacity: 0.75;
+}
+.pbp-note-icon  { font-size: 10px; flex-shrink: 0; }
+.pbp-note-text  { font-size: 12px; color: var(--text-secondary); flex: 1; line-height: 1.4; }
+
+/* Compose bar */
+.pbp-compose {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px 4px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.pbp-compose-input {
+  flex: 1;
+  background: var(--bg-input, var(--bg-hover));
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 4px 8px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.pbp-compose-input:focus { border-color: var(--accent); }
+.pbp-compose-submit {
+  background: var(--accent);
+  border: none;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.pbp-compose-submit:disabled { opacity: 0.35; cursor: default; }
+.pbp-compose-submit:not(:disabled):hover { opacity: 0.85; }
+
+/* Note button in PBP header */
+.pbp-note-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  opacity: 0.4;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: opacity 0.15s, background 0.15s;
+}
+.pbp-note-btn:hover      { opacity: 0.9; background: var(--bg-hover); }
+.pbp-note-btn-active     { opacity: 0.9 !important; }
 
 .pbp-inning {
   font-size: 10px;
