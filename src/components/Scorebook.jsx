@@ -25,6 +25,7 @@ import { api, getPitcherFatigueCached } from '../api/index.js';
 // Mirror of backend getFatigueBand — used to recompute live as pitches are thrown
 function getFatigueBand(rolling7dPitches, daysRest) {
   if (daysRest === null || daysRest === undefined) return 'fresh';
+  if (daysRest >= 4) return 'fresh';  // starter on normal rotation is always fresh
   if (rolling7dPitches > 90 || daysRest === 0) return 'high';
   if (rolling7dPitches > 60 || (daysRest === 1 && rolling7dPitches > 20)) return 'elevated';
   if (rolling7dPitches > 30 || daysRest === 1) return 'normal';
@@ -2403,7 +2404,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             // Compute fatigue data used in both expanded and compact views
             const fData = fatigueData[oppPitcher.id];
             const livePitches  = fData ? (fData.rolling7dPitches || 0) + oppPitchCount : 0;
-            const liveBand     = fData ? getFatigueBand(livePitches, fData.daysSinceAppearance) : null;
+            const liveBand     = fData ? getFatigueBand(fData.rolling7dPitches || 0, fData.daysSinceAppearance) : null;
             const BAND_LABEL   = { fresh: 'Fresh', normal: 'Normal', elevated: 'Elevated', high: 'High' };
             const BAND_DOT     = { fresh: '🟢', normal: '🟡', elevated: '🟠', high: '🔴' };
             const avg          = fData?.avgPitchesPerApp;
