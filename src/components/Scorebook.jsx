@@ -995,6 +995,12 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             inning:     prev.inning,
             side,
             seq:        seq++,
+            // When runner scores on tag-up, carry pitcher attribution
+            ...(dest === 'score' ? {
+              allowedByPitcherId:   runner?.allowedByPitcherId   || null,
+              allowedByPitcherName: runner?.allowedByPitcherName || null,
+              earned:               runner?.earned !== false,
+            } : {}),
           });
         }
         return { ...prev, bases: newBases, score: newScore, inningScores: newInningScores, runnerEvents: newRunnerEvents, gameEventSeq: seq };
@@ -1181,6 +1187,12 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
               inning:     prev.inning,
               side,
               seq:        newGameEventSeq++,
+              // When runner on 3B scores via WP/PB, carry pitcher attribution
+              ...(b === 2 ? {
+                allowedByPitcherId:   r?.allowedByPitcherId   || null,
+                allowedByPitcherName: r?.allowedByPitcherName || null,
+                earned:               r?.earned !== false,
+              } : {}),
             });
           }
         } else {
@@ -1200,6 +1212,12 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             inning:     prev.inning,
             side,
             seq:        newGameEventSeq++,
+            // When advancing from 3B scores, carry pitcher attribution
+            ...(nextBase > 2 ? {
+              allowedByPitcherId:   runner?.allowedByPitcherId   || null,
+              allowedByPitcherName: runner?.allowedByPitcherName || null,
+              earned:               runner?.earned !== false,
+            } : {}),
           });
         }
       } else if (action === 'do-out') {
@@ -1250,6 +1268,9 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           inning:     prev.inning,
           side,
           seq:        newGameEventSeq++,
+          allowedByPitcherId:   runner?.allowedByPitcherId   || null,
+          allowedByPitcherName: runner?.allowedByPitcherName || null,
+          earned:               runner?.earned !== false,
         });
       } else if (action === 'score-error') {
         scoreRunner(false); // scored on error — no RBI
@@ -1262,6 +1283,9 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
           inning:     prev.inning,
           side,
           seq:        newGameEventSeq++,
+          allowedByPitcherId:   runner?.allowedByPitcherId   || null,
+          allowedByPitcherName: runner?.allowedByPitcherName || null,
+          earned:               false, // scored on error — never earned
         });
       }
 
@@ -2429,8 +2453,28 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             }, 0) + pitcherRunnerOuts;
             const gIP  = `${Math.floor(pitcherOuts / 3)}.${pitcherOuts % 3}`;
             const gH   = pitcherPAs.filter(pa => pa.isHit).length;
-            const gR   = pitcherPAs.reduce((s, pa) => s + (pa.runs || 0), 0);
-            const gER  = pitcherPAs.filter(pa => pa.outcome !== 'error').reduce((s, pa) => s + (pa.runs || 0), 0);
+            // Runs scored by this pitcher's own runners during PAs they pitched
+            const gR_pa  = pitcherPAs.reduce((s, pa) => s + (pa.runs        || 0), 0);
+            const gER_pa = pitcherPAs.reduce((s, pa) => s + (pa.earnedRuns  || 0), 0);
+            // Runs charged to this pitcher that scored during another pitcher's outing
+            // (their runners inherited by a reliever who gave them up)
+            const allPaLog = gameState.paLog || [];
+            const gR_inherited  = allPaLog.reduce((s, pa) => {
+              const credit = (pa.inheritedRunCredits || []).find(c => c.pitcherId === oppPitcher.id);
+              return s + (credit ? (credit.runs || 0) : 0);
+            }, 0);
+            const gER_inherited = allPaLog.reduce((s, pa) => {
+              const credit = (pa.inheritedRunCredits || []).find(c => c.pitcherId === oppPitcher.id);
+              return s + (credit ? (credit.earnedRuns || 0) : 0);
+            }, 0);
+            // Runs scored via manual base-click advancement (runner events with pitcher attribution)
+            const scoringREs = (gameState.runnerEvents || []).filter(
+              re => !RUNNER_OUT_TYPES.has(re.type) && re.toBase === 3 && re.allowedByPitcherId === oppPitcher.id
+            );
+            const gR_re  = scoringREs.length;
+            const gER_re = scoringREs.filter(re => re.earned !== false).length;
+            const gR   = gR_pa  + gR_inherited  + gR_re;
+            const gER  = gER_pa + gER_inherited + gER_re;
             const gBB  = pitcherPAs.filter(pa => pa.isBB || pa.isHBP).length;
             const gK   = pitcherPAs.filter(pa => pa.isK).length;
             const gHR  = pitcherPAs.filter(pa => pa.isHR).length;
