@@ -18,7 +18,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { api, getSituationalCached } from '../api/index.js';
+import { api, getSituationalCached, getSituationalCareerCached } from '../api/index.js';
 
 // Situation code → human-readable label
 // These match the MLB Stats API statSplits codes
@@ -148,27 +148,39 @@ function getSpotlightItems(gameState, splits) {
 }
 
 export default function SituationalStats({ batter, gameState, statsById }) {
-  const [splits,  setSplits]  = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState(null);
+  const [splits,       setSplits]       = useState(null);
+  const [careerSplits, setCareerSplits] = useState(null);
+  const [loading,      setLoading]      = useState(false);
+  const [careerLoading,setCareerLoading]= useState(false);
+  const [error,        setError]        = useState(null);
+  const [viewMode,     setViewMode]     = useState('season'); // 'season' | 'career'
   const lastFetchedId = useRef(null);
 
   useEffect(() => {
     if (!batter?.id || batter.id === lastFetchedId.current) return;
     lastFetchedId.current = batter.id;
     setLoading(true);
+    setCareerLoading(true);
     setError(null);
+    setSplits(null);
+    setCareerSplits(null);
 
     getSituationalCached(batter.id)
       .then(setSplits)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
+
+    getSituationalCareerCached(batter.id)
+      .then(setCareerSplits)
+      .catch(() => {})
+      .finally(() => setCareerLoading(false));
   }, [batter?.id]);
 
   const activeSituations = getActiveSituations(gameState);
   const seasonStats      = statsById?.[batter?.id];
-  const spotlightItems   = splits ? getSpotlightItems(gameState, splits) : [];
-  const splitsSeason     = splits?._season;
+  const activeSplits     = viewMode === 'career' ? careerSplits : splits;
+  const spotlightItems   = activeSplits ? getSpotlightItems(gameState, activeSplits) : [];
+  const splitsSeason     = activeSplits?._season;
 
   return (
     <div className="situational-layout">
@@ -198,6 +210,18 @@ export default function SituationalStats({ batter, gameState, statsById }) {
                   {splitsSeason} Stats
                 </span>
               )}
+              {/* Season / Career toggle */}
+              <div className="sit-mode-toggle">
+                <button
+                  className={`sit-mode-btn${viewMode === 'season' ? ' sit-mode-active' : ''}`}
+                  onClick={() => setViewMode('season')}
+                >Season</button>
+                <button
+                  className={`sit-mode-btn${viewMode === 'career' ? ' sit-mode-active' : ''}`}
+                  onClick={() => setViewMode('career')}
+                  disabled={careerLoading}
+                >Career</button>
+              </div>
             </div>
 
             {/* Season stat line */}
@@ -226,7 +250,7 @@ export default function SituationalStats({ batter, gameState, statsById }) {
       </div>
 
       {/* ── Situation Spotlight ──────────────────────────────────────────── */}
-      {batter && splits && <SpotlightSection items={spotlightItems} />}
+      {batter && activeSplits && <SpotlightSection items={spotlightItems} />}
 
       {/* ── Active game state banner ─────────────────────────────────────── */}
       <div className="active-situations">
@@ -239,19 +263,19 @@ export default function SituationalStats({ batter, gameState, statsById }) {
       </div>
 
       {/* ── Split tables ─────────────────────────────────────────────────── */}
-      {loading ? (
+      {(viewMode === 'season' ? loading : careerLoading) ? (
         <div className="loading-state"><div className="spinner" /> Loading splits…</div>
       ) : error ? (
         <div className="error-banner">{error}</div>
-      ) : splits ? (
+      ) : activeSplits ? (
         <div className="splits-grid">
           {/* Platoon splits */}
           <SplitCard
             title="Platoon Splits"
             highlighted={activeSituations.includes('vs_platoon')}
             rows={[
-              { label: 'vs. LHP', data: findSplit(splits, ['vl', 'vsLeft', 'vs Left', 'vs_lhp', 'L']) },
-              { label: 'vs. RHP', data: findSplit(splits, ['vr', 'vsRight', 'vs Right', 'vs_rhp', 'R']) },
+              { label: 'vs. LHP', data: findSplit(activeSplits, ['vl', 'vsLeft', 'vs Left', 'vs_lhp', 'L']) },
+              { label: 'vs. RHP', data: findSplit(activeSplits, ['vr', 'vsRight', 'vs Right', 'vs_rhp', 'R']) },
             ]}
           />
 
@@ -261,9 +285,9 @@ export default function SituationalStats({ batter, gameState, statsById }) {
               title="RISP"
               highlighted={activeSituations.includes('RISP')}
               rows={[
-                { label: 'RISP', data: findSplit(splits, ['risp', 'RISP', 'Runners In Scoring Position']) },
-                { label: 'Bases Loaded', data: findSplit(splits, ['r123', 'Bases Loaded', 'basesLoaded', 'bases_loaded']) },
-                { label: 'Runners On', data: findSplit(splits, ['ron', 'Runners On', 'runnersOn', 'runners_on']) },
+                { label: 'RISP', data: findSplit(activeSplits, ['risp', 'RISP', 'Runners In Scoring Position']) },
+                { label: 'Bases Loaded', data: findSplit(activeSplits, ['r123', 'Bases Loaded', 'basesLoaded', 'bases_loaded']) },
+                { label: 'Runners On', data: findSplit(activeSplits, ['ron', 'Runners On', 'runnersOn', 'runners_on']) },
               ]}
             />
           )}
@@ -273,10 +297,10 @@ export default function SituationalStats({ batter, gameState, statsById }) {
             title="2-Out Situations"
             highlighted={activeSituations.includes('2 Outs')}
             rows={[
-              { label: '2 Outs', data: findSplit(splits, ['o2', 'twoOut', 'Two Outs', 'two_outs']) },
-              { label: '2-Out RISP', data: findSplit(splits, ['risp2', 'twoOutRBI', '2-Out RISP', 'two_out_risp']) },
-              { label: '0 Outs', data: findSplit(splits, ['o0', 'noOuts', 'No Outs', 'zero_outs']) },
-              { label: '1 Out',  data: findSplit(splits, ['o1', 'oneOut', 'One Out', 'one_out']) },
+              { label: '2 Outs', data: findSplit(activeSplits, ['o2', 'twoOut', 'Two Outs', 'two_outs']) },
+              { label: '2-Out RISP', data: findSplit(activeSplits, ['risp2', 'twoOutRBI', '2-Out RISP', 'two_out_risp']) },
+              { label: '0 Outs', data: findSplit(activeSplits, ['o0', 'noOuts', 'No Outs', 'zero_outs']) },
+              { label: '1 Out',  data: findSplit(activeSplits, ['o1', 'oneOut', 'One Out', 'one_out']) },
             ]}
           />
 
@@ -285,7 +309,7 @@ export default function SituationalStats({ batter, gameState, statsById }) {
             title="Close & Late"
             highlighted={activeSituations.includes('Close & Late')}
             rows={[
-              { label: 'Late / Close', data: findSplit(splits, ['lc', 'closeAndLate', 'Close & Late', 'lateAndClose', 'lateInning']) },
+              { label: 'Late / Close', data: findSplit(activeSplits, ['lc', 'closeAndLate', 'Close & Late', 'lateAndClose', 'lateInning']) },
             ]}
           />
 
@@ -294,11 +318,11 @@ export default function SituationalStats({ batter, gameState, statsById }) {
             title="Count Splits"
             highlighted
             rows={[
-              { label: 'Ahead',      data: findSplit(splits, ['ac', 'aheadInCount', 'Ahead In Count']) },
-              { label: 'Behind',     data: findSplit(splits, ['bc', 'behindInCount', 'Behind In Count']) },
-              { label: 'Even',       data: findSplit(splits, ['ec', 'evenCount', 'Even Count']) },
-              { label: 'Full Count', data: findSplit(splits, ['fc', 'fullCount', 'Full Count']) },
-              { label: 'First Pitch',data: findSplit(splits, ['fp', 'firstPitchStrike', 'First Pitch Strike', 'First Pitch']) },
+              { label: 'Ahead',      data: findSplit(activeSplits, ['ac', 'aheadInCount', 'Ahead In Count']) },
+              { label: 'Behind',     data: findSplit(activeSplits, ['bc', 'behindInCount', 'Behind In Count']) },
+              { label: 'Even',       data: findSplit(activeSplits, ['ec', 'evenCount', 'Even Count']) },
+              { label: 'Full Count', data: findSplit(activeSplits, ['fc', 'fullCount', 'Full Count']) },
+              { label: 'First Pitch',data: findSplit(activeSplits, ['fp', 'firstPitchStrike', 'First Pitch Strike', 'First Pitch']) },
             ]}
           />
 
@@ -307,13 +331,13 @@ export default function SituationalStats({ batter, gameState, statsById }) {
             title="Home / Away"
             highlighted={false}
             rows={[
-              { label: 'Home', data: findSplit(splits, ['h', 'home', 'Home']) },
-              { label: 'Away', data: findSplit(splits, ['a', 'away', 'Away', 'Road']) },
+              { label: 'Home', data: findSplit(activeSplits, ['h', 'home', 'Home']) },
+              { label: 'Away', data: findSplit(activeSplits, ['a', 'away', 'Away', 'Road']) },
             ]}
           />
 
           {/* All splits — raw dump for reference */}
-          <AllSplitsCard splits={splits} />
+          <AllSplitsCard splits={activeSplits} />
         </div>
       ) : batter ? (
         <div className="loading-state">Select a batter in the Scorebook to see situational stats.</div>

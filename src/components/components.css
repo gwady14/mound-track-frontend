@@ -2016,8 +2016,36 @@
 }
 .sit-batter-meta {
   display: flex;
+  align-items: center;
   gap: 6px;
   margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+/* Season / Career toggle */
+.sit-mode-toggle {
+  display: flex;
+  margin-left: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.sit-mode-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.sit-mode-btn:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-primary); }
+.sit-mode-btn:disabled { opacity: 0.4; cursor: default; }
+.sit-mode-active {
+  background: var(--accent) !important;
+  color: #fff !important;
 }
 
 .season-line {

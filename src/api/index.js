@@ -306,7 +306,8 @@ export const getBatterStreaksCached   = makeCached(id => `cache:batter-streaks:$
 export const getSprayChartCached      = makeCached(id => `cache:spray:${id}`,          id => get(`/stats/batter/${id}/spray`));
 export const getZonesCached           = makeCached(id => `cache:zones:${id}`,          id => get(`/stats/batter/${id}/zones`));
 export const getMilestonesCached      = makeCached(id => `cache:milestones:${id}`,     id => get(`/milestones/${id}`));
-export const getSituationalCached     = makeCached(id => `cache:situational:${id}`,    id => get(`/situational/${id}`));
+export const getSituationalCached       = makeCached(id => `cache:situational:${id}`,        id => get(`/situational/${id}`));
+export const getSituationalCareerCached = makeCached(id => `cache:situational-career:${id}`, id => get(`/situational/${id}?type=career`), 60 * 60 * 1000);
 export const getPitcherFatigueCached  = makeCached(id => `cache:fatigue:${id}`,        id => get(`/pitcher-fatigue/${id}`));
 
 // ── Game Prep API functions ──────────────────────────────────────────────────
