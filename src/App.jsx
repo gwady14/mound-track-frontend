@@ -684,6 +684,15 @@ export default function App() {
             </>
           )}
 
+          {/* Load Game — always visible so users can load a game without starting one first */}
+          <button
+            className="btn btn-ghost btn-sm header-load-btn"
+            onClick={() => setShowHistory(true)}
+            title="Load a saved game"
+          >
+            Load Game
+          </button>
+
           {/* User menu */}
           <div className="user-menu-wrap" ref={userMenuRef}>
             <button

@@ -199,6 +199,18 @@ button {
 
 .btn-sm { padding: 4px 10px; font-size: 12px; }
 
+/* Header "Load Game" button — accent-tinted so it stands out as the main entry
+   point when no game is active, but stays subtle while a game is running. */
+.header-load-btn {
+  color: var(--accent) !important;
+  border-color: rgba(59,130,246,.35) !important;
+}
+.header-load-btn:hover {
+  background: rgba(59,130,246,.12) !important;
+  color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+
 /* ── Inputs ──────────────────────────────────────────────────────────────── */
 input, select {
   background: var(--bg-card);
