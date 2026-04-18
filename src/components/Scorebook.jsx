@@ -249,7 +249,9 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
   const [bipNotation,   setBipNotation]   = useState([]);     // BK-33: fielder position sequence e.g. [6,4,3]
   const [bipPendingOutcome, setBipPendingOutcome] = useState(null); // outcome key waiting for notation
   const [selectedPitchType, setSelectedPitchType] = useState(null); // BK-24: pitch type selected before outcome
-  const [showPitchSeq,      setShowPitchSeq]      = useState(true);  // BK-39: show/hide PA pitch sequences
+  const [showPitchSeq, setShowPitchSeq] = useState(() => {          // BK-39: show/hide PA pitch sequences
+    try { return localStorage.getItem('pbp_show_pitch_seq') !== 'false'; } catch { return true; }
+  });
   const [bipFCRetiredBase, setBipFCRetiredBase] = useState(null); // 0|1|2 — which base runner was retired on FC
   const [bipFCIsDP,        setBipFCIsDP]        = useState(false); // true = FC was a double play
   const [bipDPBatterOut,   setBipDPBatterOut]   = useState(true);  // BK-48: true = batter out on DP, false = reaches on E
@@ -2682,7 +2684,11 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
             <span style={{ flex: 1 }} />
             <button
               className={`pitch-seq-toggle${showPitchSeq ? ' active' : ''}`}
-              onClick={() => setShowPitchSeq(v => !v)}
+              onClick={() => setShowPitchSeq(v => {
+                const next = !v;
+                try { localStorage.setItem('pbp_show_pitch_seq', String(next)); } catch {}
+                return next;
+              })}
               title={showPitchSeq ? 'Hide pitch sequences' : 'Show pitch sequences'}
             >{showPitchSeq ? '▾ Hide PA' : '▸ Show PA'}</button>
           </div>

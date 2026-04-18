@@ -137,7 +137,14 @@ function PANoteEditor({ paIndex, existingNote, onSave }) {
 }
 
 export default function PlayByPlayLog({ paLog = [], runnerEvents = [], awayTeam, homeTeam, filterBatterId = null, filterBatterName = null, onDeletePA = null, onDeleteRunner = null, onUpdatePANote = null }) {
-  const [showAll, setShowAll] = useState(true);
+  const [showAll, setShowAll] = useState(() => {
+    try { return localStorage.getItem('pbp_show_all') !== 'false'; } catch { return true; }
+  });
+  const toggleShowAll = () => setShowAll(v => {
+    const next = !v;
+    try { localStorage.setItem('pbp_show_all', String(next)); } catch {}
+    return next;
+  });
 
   // Combine PA entries and runner events into a single sorted timeline.
   // Each event has a `seq` counter stamped at creation time — sort descending for newest-first.
@@ -179,7 +186,7 @@ export default function PlayByPlayLog({ paLog = [], runnerEvents = [], awayTeam,
           {filterBatterId && (
             <button
               className="pbp-filter-btn"
-              onClick={() => setShowAll(v => !v)}
+              onClick={toggleShowAll}
               title={showAll ? `Filter to ${filterBatterName}` : 'Show all plays'}
             >
               {showAll ? 'Team' : 'Player'}
