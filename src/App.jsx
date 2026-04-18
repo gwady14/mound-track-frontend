@@ -77,7 +77,9 @@ export default function App() {
   const [savingGame,     setSavingGame]     = useState(false);
   const [saveMsg,        setSaveMsg]        = useState(''); // success/error flash
   const [refreshingStats, setRefreshingStats] = useState(false);
-  const userMenuRef = useRef(null);
+  const userMenuRef    = useRef(null);
+  // Auto-save: track the last half-inning to detect transitions
+  const prevHalfRef    = useRef({ inning: null, isTop: null });
 
   // Close user menu on outside click
   useEffect(() => {
@@ -120,6 +122,33 @@ export default function App() {
       localStorage.removeItem(STORAGE_KEY);
     }
   }, [gameData, gameState, tab]);
+
+  // Auto-save to backend at the end of each half-inning (silent, background).
+  // Fires whenever isTop or inning changes; uses prevHalfRef to skip the
+  // initial mount and any game-load/reset that sets the ref to null.
+  useEffect(() => {
+    if (!gameData || !token) return;
+    const { inning, isTop } = gameState;
+    const prev = prevHalfRef.current;
+
+    // First render after a new/loaded game — just initialise the ref, don't save.
+    if (prev.inning === null) {
+      prevHalfRef.current = { inning, isTop };
+      return;
+    }
+
+    // Short-circuit if nothing changed (e.g. effect re-ran due to gameData update).
+    if (prev.inning === inning && prev.isTop === isTop) return;
+    prevHalfRef.current = { inning, isTop };
+
+    // Fire silent background save — don't touch savingGame so the button stays usable.
+    api.saveGame(gameData, gameState, false, token)
+      .then(() => {
+        setSaveMsg('Auto-saved');
+        setTimeout(() => setSaveMsg(m => m === 'Auto-saved' ? '' : m), 2500);
+      })
+      .catch(() => {}); // silent on failure — user can still save manually
+  }, [gameState.inning, gameState.isTop, gameData, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // BK-90: Pre-cache all roster pitchers whenever a game is loaded (fresh or restored).
   // Using team IDs as deps so this only re-runs when the game changes, not on every state update.
@@ -297,6 +326,7 @@ export default function App() {
       });
 
       // Reset game state when a new game is loaded
+      prevHalfRef.current = { inning: null, isTop: null }; // don't auto-save on fresh start
       setGameState(EMPTY_GAME);
       setShowSummary(false);
       setOfflineReady(false);
@@ -586,6 +616,7 @@ export default function App() {
 
   // ── BK-35: Load a previously saved game ──────────────────────────────────
   const handleLoadGame = useCallback((loadedGameData, loadedGameState) => {
+    prevHalfRef.current = { inning: null, isTop: null }; // don't auto-save on restore
     setGameData(loadedGameData);
     setGameState(loadedGameState ?? EMPTY_GAME);
     setShowSummary(false);
@@ -683,7 +714,7 @@ export default function App() {
                 </span>
               )}
               {saveMsg && (
-                <span className={`save-flash ${saveMsg === 'Saved!' ? 'save-flash-ok' : 'save-flash-err'}`}>
+                <span className={`save-flash ${saveMsg === 'Save failed' ? 'save-flash-err' : 'save-flash-ok'}`}>
                   {saveMsg}
                 </span>
               )}
