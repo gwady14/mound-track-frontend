@@ -22,14 +22,32 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import PlayByPlayLog from './PlayByPlayLog.jsx';
 import { api, getPitcherFatigueCached } from '../api/index.js';
 
-// Mirror of backend getFatigueBand — used to recompute live as pitches are thrown
-function getFatigueBand(rolling7dPitches, daysRest) {
+// Live fatigue band — factors in pre-game rest AND current-game pitch count.
+// currentGamePitches = pitches thrown so far today; avg = typical pitches/app.
+const BAND_RANK = { fresh: 0, normal: 1, elevated: 2, high: 3 };
+function getFatigueBand(rolling7dPitches, daysRest, currentGamePitches = 0, avg = null) {
   if (daysRest === null || daysRest === undefined) return 'fresh';
-  if (daysRest >= 4) return 'fresh';  // starter on normal rotation is always fresh
-  if (rolling7dPitches > 90 || daysRest === 0) return 'high';
-  if (rolling7dPitches > 60 || (daysRest === 1 && rolling7dPitches > 20)) return 'elevated';
-  if (rolling7dPitches > 30 || daysRest === 1) return 'normal';
-  return 'fresh';
+
+  // In-game workload: how far through their typical outing are they?
+  let inGameBand = 'fresh';
+  if (avg && currentGamePitches > 0) {
+    const pct = currentGamePitches / avg;
+    if      (pct >= 1.00) inGameBand = 'high';
+    else if (pct >= 0.90) inGameBand = 'elevated';
+    else if (pct >= 0.70) inGameBand = 'normal';
+  }
+
+  // Pre-game rest / rolling-workload band (unchanged logic from backend)
+  const total = (rolling7dPitches || 0) + currentGamePitches;
+  let restBand;
+  if      (daysRest >= 4)                                               restBand = 'fresh';
+  else if (total > 90 || daysRest === 0)                                restBand = 'high';
+  else if (total > 60 || (daysRest === 1 && total > 20))                restBand = 'elevated';
+  else if (total > 30 || daysRest === 1)                                restBand = 'normal';
+  else                                                                   restBand = 'fresh';
+
+  // Surface the worse of the two bands
+  return BAND_RANK[inGameBand] > BAND_RANK[restBand] ? inGameBand : restBand;
 }
 
 // ── BIP contact-type → available outcome buttons ─────────────────────────
@@ -2452,12 +2470,12 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
               `${p.jerseyNumber ? `#${p.jerseyNumber} ` : ''}${p.name}${p.position?.abbreviation ? ` · ${p.position.abbreviation}` : ''}${p.throwHand ? ` · ${p.throwHand}HP` : ''}`;
 
             // Compute fatigue data used in both expanded and compact views
-            const fData = fatigueData[oppPitcher.id];
+            const fData        = fatigueData[oppPitcher.id];
+            const avg          = fData?.avgPitchesPerApp;
             const livePitches  = fData ? (fData.rolling7dPitches || 0) + oppPitchCount : 0;
-            const liveBand     = fData ? getFatigueBand(fData.rolling7dPitches || 0, fData.daysSinceAppearance) : null;
+            const liveBand     = fData ? getFatigueBand(fData.rolling7dPitches || 0, fData.daysSinceAppearance, oppPitchCount, avg) : null;
             const BAND_LABEL   = { fresh: 'Fresh', normal: 'Normal', elevated: 'Elevated', high: 'High' };
             const BAND_DOT     = { fresh: '🟢', normal: '🟡', elevated: '🟠', high: '🔴' };
-            const avg          = fData?.avgPitchesPerApp;
             const remaining    = avg != null ? Math.max(0, avg - oppPitchCount) : null;
             const pctUsed      = avg != null ? Math.min(1, oppPitchCount / avg) : null;
 
