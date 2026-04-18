@@ -76,6 +76,7 @@ export default function App() {
   const [showAdmin,      setShowAdmin]      = useState(false);
   const [savingGame,     setSavingGame]     = useState(false);
   const [saveMsg,        setSaveMsg]        = useState(''); // success/error flash
+  const [refreshingStats, setRefreshingStats] = useState(false);
   const userMenuRef = useRef(null);
 
   // Close user menu on outside click
@@ -354,6 +355,82 @@ export default function App() {
     }
   }, []);
 
+  // ── Refresh all live stats without resetting game state ──────────────────
+  const handleRefreshStats = useCallback(async () => {
+    if (!gameData) return;
+    setRefreshingStats(true);
+    try {
+      const isPitcher = p => p?.position === 'P' || p?.primaryPosition?.abbreviation === 'P';
+      const allLineupBatters = [
+        ...(gameData.homeLineup || []),
+        ...(gameData.awayLineup || []),
+      ].filter(Boolean).filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+      const allRosterPitchers = [
+        ...(gameData.homeRoster || []).filter(isPitcher),
+        ...(gameData.awayRoster || []).filter(isPitcher),
+      ].filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+      const allRosterBatters = [
+        ...(gameData.homeRoster || []),
+        ...(gameData.awayRoster || []),
+      ].filter(p => p && !isPitcher(p))
+       .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i)
+       .filter(p => !allLineupBatters.find(b => b.id === p.id));
+      const allBatters  = [...allLineupBatters, ...allRosterBatters]
+        .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+      const homePitcher = gameData.currentHomePitcher || gameData.homePitcher;
+      const awayPitcher = gameData.currentAwayPitcher || gameData.awayPitcher;
+      const homeLineup  = (gameData.homeLineup || []).filter(Boolean);
+      const awayLineup  = (gameData.awayLineup || []).filter(Boolean);
+
+      await Promise.allSettled([
+        // Batter streaks (L7/L30) — the main reason for the refresh
+        ...allBatters.map(b =>
+          getBatterStreaksCached(b.id).then(s => {
+            setGameData(prev => prev ? {
+              ...prev, streaksById: { ...prev.streaksById, [b.id]: { ...s, id: b.id } },
+            } : prev);
+          })
+        ),
+        // Batter season stats
+        ...allBatters.map(b =>
+          getBatterStatsCached(b.id).then(s => {
+            setGameData(prev => prev ? {
+              ...prev, statsById: { ...prev.statsById, [b.id]: { ...s, id: b.id } },
+            } : prev);
+          })
+        ),
+        // Pitcher season stats + arsenal
+        ...allRosterPitchers.map(p =>
+          getPitcherStatsCached(p.id).then(s => {
+            setGameData(prev => prev ? {
+              ...prev, statsById: { ...prev.statsById, [p.id]: { ...s, id: p.id } },
+            } : prev);
+          })
+        ),
+        ...allRosterPitchers.map(p =>
+          getPitcherArsenalCached(p.id).then(a => {
+            setGameData(prev => prev ? {
+              ...prev, arsenalById: { ...prev.arsenalById, [p.id]: a?.pitches ?? a },
+            } : prev);
+          })
+        ),
+        // BvP
+        homePitcher ? getBulkMatchupsCached(awayLineup, homePitcher.id).then(rows => {
+          const patch = {};
+          for (const r of rows) if (r.batterId) patch[`${r.batterId}_${homePitcher.id}`] = r;
+          setGameData(prev => prev ? { ...prev, bvpById: { ...prev.bvpById, ...patch } } : prev);
+        }) : Promise.resolve(),
+        awayPitcher ? getBulkMatchupsCached(homeLineup, awayPitcher.id).then(rows => {
+          const patch = {};
+          for (const r of rows) if (r.batterId) patch[`${r.batterId}_${awayPitcher.id}`] = r;
+          setGameData(prev => prev ? { ...prev, bvpById: { ...prev.bvpById, ...patch } } : prev);
+        }) : Promise.resolve(),
+      ]);
+    } finally {
+      setRefreshingStats(false);
+    }
+  }, [gameData]);
+
   // ── Handle in-game pitcher change (reliever substitution) ────────────────
   // side = 'home' | 'away' — refers to the pitching team, not the batting team
   const handlePitcherChange = useCallback(async (side, pitcher) => {
@@ -610,6 +687,14 @@ export default function App() {
                   {saveMsg}
                 </span>
               )}
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={handleRefreshStats}
+                disabled={refreshingStats}
+                title="Re-fetch all player stats (L7, L30, BvP, arsenal)"
+              >
+                {refreshingStats ? '↻ Refreshing…' : '↻ Refresh Stats'}
+              </button>
               <button
                 className="btn btn-ghost btn-sm"
                 onClick={() => handleSaveGame(false)}
