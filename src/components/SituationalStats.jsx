@@ -210,7 +210,10 @@ export default function SituationalStats({ batter, gameState, statsById }) {
                   {splitsSeason} Stats
                 </span>
               )}
-              {/* Season / Career toggle */}
+            </div>
+
+            {/* Season / Career toggle — own row so it can't get lost */}
+            <div className="sit-mode-row">
               <div className="sit-mode-toggle">
                 <button
                   className={`sit-mode-btn${viewMode === 'season' ? ' sit-mode-active' : ''}`}
@@ -220,7 +223,7 @@ export default function SituationalStats({ batter, gameState, statsById }) {
                   className={`sit-mode-btn${viewMode === 'career' ? ' sit-mode-active' : ''}`}
                   onClick={() => setViewMode('career')}
                   disabled={careerLoading}
-                >Career</button>
+                >{careerLoading ? 'Loading…' : 'Career'}</button>
               </div>
             </div>
 
