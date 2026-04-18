@@ -169,9 +169,13 @@ export const api = {
   /** Fetch full game data for one saved game */
   getGame: (id, token) => get(`/games/${id}`, token),
 
-  /** Save a game for the current user */
+  /** Save a game for the current user (creates a new record) */
   saveGame: (gameData, gameState, isComplete, token) =>
     post('/games', { gameData, gameState, isComplete }, token),
+
+  /** Update an existing saved game in-place */
+  updateGame: (id, gameData, gameState, isComplete, token) =>
+    patch(`/games/${id}`, { gameData, gameState, isComplete }, token),
 
   /** Delete a saved game */
   deleteGame: (id, token) => del(`/games/${id}`, token),

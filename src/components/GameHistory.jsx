@@ -34,7 +34,7 @@ export default function GameHistory({ onClose, onLoad }) {
   async function handleLoad(game) {
     try {
       const full = await api.getGame(game.id, token);
-      onLoad(full.gameData, full.gameState);
+      onLoad(full.gameData, full.gameState, full.id ?? game.id);
       onClose();
     } catch (e) {
       setError(e.message);

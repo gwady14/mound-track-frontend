@@ -39,7 +39,7 @@ function UserGames({ userId, token, onLoad, onClose }) {
   async function handleLoad(gameId) {
     try {
       const full = await api.getGame(gameId, token);
-      onLoad(full.gameData, full.gameState);
+      onLoad(full.gameData, full.gameState, full.id ?? gameId);
       onClose();
     } catch (e) {
       setError(e.message);

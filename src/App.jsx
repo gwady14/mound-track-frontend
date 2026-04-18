@@ -76,9 +76,12 @@ export default function App() {
   const [showAdmin,      setShowAdmin]      = useState(false);
   const [savingGame,     setSavingGame]     = useState(false);
   const [saveMsg,        setSaveMsg]        = useState(''); // success/error flash
-  const userMenuRef    = useRef(null);
+  const userMenuRef      = useRef(null);
   // Auto-save: track the last half-inning to detect transitions
-  const prevHalfRef    = useRef({ inning: null, isTop: null });
+  const prevHalfRef      = useRef({ inning: null, isTop: null });
+  const savedGameIdRef   = useRef(savedGameId);   // always-current ref for use inside effects
+  const autoSaveInFlight = useRef(false);          // prevent stacked concurrent saves
+  savedGameIdRef.current = savedGameId;
 
   // Close user menu on outside click
   useEffect(() => {
@@ -93,8 +96,9 @@ export default function App() {
 
   // Restore from localStorage on first load
   const [saved]           = useState(loadSavedGame);
-  const [tab,             setTab]             = useState(saved?.tab       ?? 'matchups');
-  const [gameData,        setGameData]        = useState(saved?.gameData  ?? null);
+  const [tab,             setTab]             = useState(saved?.tab          ?? 'matchups');
+  const [gameData,        setGameData]        = useState(saved?.gameData     ?? null);
+  const [savedGameId,     setSavedGameId]     = useState(saved?.savedGameId  ?? null); // backend record ID once saved
   const [loadingGame,     setLoadingGame]     = useState(false);
   const [loadProgress,    setLoadProgress]    = useState(0);
   const [loadStep,        setLoadStep]        = useState('');
@@ -110,7 +114,7 @@ export default function App() {
   useEffect(() => {
     if (gameData) {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ gameData, gameState, tab }));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ gameData, gameState, tab, savedGameId }));
       } catch {
         // BK-74: Storage quota exceeded — surface a visible warning
         setFetchError('⚠ Auto-save failed — device storage is full. Export your game to avoid losing progress.');
@@ -141,12 +145,21 @@ export default function App() {
     prevHalfRef.current = { inning, isTop };
 
     // Fire silent background save — don't touch savingGame so the button stays usable.
-    api.saveGame(gameData, gameState, false, token)
-      .then(() => {
+    // Use PATCH if we already have a record, POST on first save.
+    if (autoSaveInFlight.current) return;
+    autoSaveInFlight.current = true;
+    const existingId = savedGameIdRef.current;
+    const saveCall = existingId
+      ? api.updateGame(existingId, gameData, gameState, false, token)
+      : api.saveGame(gameData, gameState, false, token);
+    saveCall
+      .then(result => {
+        if (!existingId && result?.id) setSavedGameId(result.id);
         setSaveMsg('Auto-saved');
         setTimeout(() => setSaveMsg(m => m === 'Auto-saved' ? '' : m), 2500);
       })
-      .catch(() => {}); // silent on failure — user can still save manually
+      .catch(() => {}) // silent on failure — user can still save manually
+      .finally(() => { autoSaveInFlight.current = false; });
   }, [gameState.inning, gameState.isTop, gameData, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // BK-90: Pre-cache all roster pitchers whenever a game is loaded (fresh or restored).
@@ -326,6 +339,7 @@ export default function App() {
 
       // Reset game state when a new game is loaded
       prevHalfRef.current = { inning: null, isTop: null }; // don't auto-save on fresh start
+      setSavedGameId(null); // new game gets a fresh backend record on first save
       setGameState(EMPTY_GAME);
       setShowSummary(false);
       setOfflineReady(false);
@@ -527,7 +541,11 @@ export default function App() {
     setSavingGame(true);
     setSaveMsg('');
     try {
-      await api.saveGame(gameData, gameState, isComplete, token);
+      const existingId = savedGameIdRef.current;
+      const result = existingId
+        ? await api.updateGame(existingId, gameData, gameState, isComplete, token)
+        : await api.saveGame(gameData, gameState, isComplete, token);
+      if (!existingId && result?.id) setSavedGameId(result.id);
       setSaveMsg('Saved!');
     } catch (e) {
       setSaveMsg('Save failed');
@@ -538,8 +556,9 @@ export default function App() {
   }, [gameData, gameState, token]);
 
   // ── BK-35: Load a previously saved game ──────────────────────────────────
-  const handleLoadGame = useCallback((loadedGameData, loadedGameState) => {
+  const handleLoadGame = useCallback((loadedGameData, loadedGameState, loadedGameId = null) => {
     prevHalfRef.current = { inning: null, isTop: null }; // don't auto-save on restore
+    setSavedGameId(loadedGameId);
     setGameData(loadedGameData);
     setGameState(loadedGameState ?? EMPTY_GAME);
     setShowSummary(false);
