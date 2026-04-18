@@ -864,14 +864,8 @@ function LineupMatchupTable({ label, team, rows, sortState, onSort, currentPitch
               const currentSlot = (batterIdx ?? 0) % (lineupLength || 9);
               const isAtBat     = slot === currentSlot;
 
-              // Color L7/L30 relative to season average: hot = green, cold = red
-              const streakColor = (val) => {
-                if (val == null || seasonAvg == null) return '';
-                const diff = val - seasonAvg;
-                if (diff >=  0.030) return 'stat-great';
-                if (diff <= -0.030) return 'stat-poor';
-                return '';
-              };
+              // Color L7/L30 using the same absolute avg thresholds as season stats
+              const streakColor = (val) => colorClass('avg', val);
 
               return (
                 <React.Fragment key={player.id}>
