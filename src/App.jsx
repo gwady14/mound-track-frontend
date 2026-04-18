@@ -76,6 +76,14 @@ export default function App() {
   const [showAdmin,      setShowAdmin]      = useState(false);
   const [savingGame,     setSavingGame]     = useState(false);
   const [saveMsg,        setSaveMsg]        = useState(''); // success/error flash
+
+  // Restore from localStorage on first load
+  const [saved]           = useState(loadSavedGame);
+  const [tab,             setTab]             = useState(saved?.tab          ?? 'matchups');
+  const [gameData,        setGameData]        = useState(saved?.gameData     ?? null);
+  const [savedGameId,     setSavedGameId]     = useState(saved?.savedGameId  ?? null); // backend record ID once saved
+
+  // Refs — declared after state so savedGameId is in scope
   const userMenuRef      = useRef(null);
   // Auto-save: track the last half-inning to detect transitions
   const prevHalfRef      = useRef({ inning: null, isTop: null });
@@ -93,12 +101,6 @@ export default function App() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  // Restore from localStorage on first load
-  const [saved]           = useState(loadSavedGame);
-  const [tab,             setTab]             = useState(saved?.tab          ?? 'matchups');
-  const [gameData,        setGameData]        = useState(saved?.gameData     ?? null);
-  const [savedGameId,     setSavedGameId]     = useState(saved?.savedGameId  ?? null); // backend record ID once saved
   const [loadingGame,     setLoadingGame]     = useState(false);
   const [loadProgress,    setLoadProgress]    = useState(0);
   const [loadStep,        setLoadStep]        = useState('');
