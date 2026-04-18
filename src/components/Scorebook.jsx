@@ -217,7 +217,6 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
   const [loadingInsight,  setLoadingInsight]  = useState(null);
   const [activeInsightId, setActiveInsightId] = useState(null);
   const [fatigueData,     setFatigueData]     = useState({});  // {[pitcherId]: fatigueObj}
-  const fetchedFatigueIds = useRef(new Set());
   const shortcutRef       = useRef({});
   const historyRef        = useRef([]);
   const gameStateRef      = useRef(gameState);
@@ -1569,8 +1568,7 @@ export default function Scorebook({ gameData, gameState, setGameState, onPinchHi
   const awayPitcherId = (gameData?.currentAwayPitcher || gameData?.awayPitcher)?.id;
   useEffect(() => {
     [homePitcherId, awayPitcherId].forEach(pid => {
-      if (!pid || fetchedFatigueIds.current.has(pid)) return;
-      fetchedFatigueIds.current.add(pid);
+      if (!pid) return;
       getPitcherFatigueCached(pid)
         .then(d => setFatigueData(prev => ({ ...prev, [pid]: d })))
         .catch(() => {});
